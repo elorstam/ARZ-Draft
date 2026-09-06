@@ -1,0 +1,37 @@
+﻿# Build
+/build/
+/out/
+cmake-build-*/
+
+# Visual Studio
+.vs/
+
+# VS Code local settings
+.vscode/
+
+# CMake
+CMakeUserPresets.json
+CMakeCache.txt
+CMakeFiles/
+
+# Compiled files
+*.obj
+*.o
+*.exe
+*.dll
+*.lib
+*.pdb
+
+# Qt generated
+moc_*
+ui_*
+qrc_*
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Temporary
+*.tmp
+*.bak
+*.autosave

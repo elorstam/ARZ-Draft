@@ -21,7 +21,7 @@ COMPLETE
 COMPLETE
 
 ### 0.7 Transaction / Undo-Redo
-NEXT
+COMPLETE
 
 Goals:
 - Reversible model mutations
@@ -32,7 +32,7 @@ Goals:
 - Tests for reversible operations
 
 ### 0.8 Command API
-PLANNED
+COMPLETE
 
 Goals:
 - Explicit command execution
@@ -43,7 +43,7 @@ Goals:
 - AI/agents will eventually use the same command API
 
 ### 0.9 Selection / Spatial Foundation
-PLANNED
+COMPLETE
 
 Goals:
 - Basic selection queries
@@ -52,7 +52,7 @@ Goals:
 - No brute-force architecture lock-in
 
 ### 0.10 Snap Foundation
-PLANNED
+NEXT
 
 Goals:
 - Endpoint snap
@@ -172,3 +172,53 @@ Planned:
 - Automatic elevations
 - Quantity takeoff
 - OpenCascade-based advanced geometry
+
+---
+
+## UI Layout Reference
+
+ARZ Draft V1 user interface should follow a familiar professional CAD layout inspired by established desktop CAD workflows, without copying proprietary assets or exact proprietary UI.
+
+Primary layout:
+
+- Top ribbon / tool groups
+- Left-side Properties panel
+- Large central dark CAD canvas
+- Crosshair cursor
+- Navigation / view controls near the upper-right of the canvas
+- Bottom command line
+- Bottom Model / Layout tabs
+- Bottom status bar
+- Quick toggles for snap, grid, ortho, polar and related drafting modes
+- Layer / Color / Linetype / Lineweight controls in the upper tool area
+
+Initial ribbon direction may include:
+- Home
+- Insert
+- Annotate
+- Parametric
+- View
+- Manage
+- Output
+
+Important product rule:
+
+Phase 1.0 must not be only a generic debug window.
+
+The first interactive CAD sandbox should already establish the intended CAD shell:
+
+Ribbon + Properties + Canvas + Command Line + Status Bar
+
+The first version may contain only a small number of functional tools, but the overall spatial layout should already resemble a professional desktop CAD application.
+
+ARZ Draft should preserve familiar CAD workflow while using its own visual identity and implementation.
+
+Future ARZ-specific additions may include:
+- Story / Floor selector
+- Architectural tools
+- Area tools
+- Parcel / coordinate tools
+- Schedule tools
+- Project-specific panels
+
+These additions must fit naturally into the CAD shell rather than replacing the core drafting workflow.

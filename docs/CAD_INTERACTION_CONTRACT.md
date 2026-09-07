@@ -37,16 +37,16 @@ Enter and Space use this state order:
 4. With no applicable state, the input is a safe no-op.
 
 An active command owns the meaning of confirmation at each step. LINE is a
-continuous command: the first point changes the prompt to `Specify next point`,
-and every subsequent point creates one independent `LineEntity` through its own
-`AddLineCommand`. The completed segment's endpoint becomes the next segment's
-start point, so LINE stays in `Specify next point` until explicitly finished.
-Enter, Space, or right-click finishes active LINE without creating another
-segment; only a later idle Enter/Space repeats LINE from `Specify first point`.
+repeating two-point command: a first and second point create one independent
+`LineEntity` through its own `AddLineCommand`, then active LINE immediately
+returns to `Specify first point`. The completed segment's endpoint is not carried
+into the next segment. Enter, Space, or right-click finishes active LINE without
+creating a line; only a later idle Enter/Space repeats LINE.
 
-Continuous LINE affects point acquisition only. Every segment remains a separate
-entity with its own stable `ObjectId` and undo history entry. It does not create a
-Polyline or share future PLINE model semantics.
+Command persistence does not imply segment continuity. Every completed segment
+has its own stable `ObjectId` and undo history entry. LINE does not create a
+Polyline or share future PLINE model or connected-chain semantics. Both points of
+every independent segment use the shared SnapService while Object Snap is enabled.
 
 ## Cancellation
 

@@ -138,7 +138,7 @@ AUTOMATED COMPLETE — HUMAN ACCEPTANCE PENDING
 - centralized screen lineweight policy
 - separate persistent document and transient overlay passes
 - viewport visible-world-bounds support
-- repeating LINE sessions producing independent two-point entities
+- continuous LINE sessions producing separate connected LineEntity objects
 - repeated endpoint/midpoint-snapped placements from one paste invocation
 - shared right-click exit for active interactions with no pending commit
 

@@ -26,8 +26,7 @@ std::optional<LineInput> LineInputController::acceptPoint(
     }
 
     const LineInput result{*firstPoint_, point};
-    firstPoint_.reset();
-    state_ = LineInputState::AwaitingFirstPoint;
+    firstPoint_ = point;
     return result;
 }
 

@@ -83,7 +83,7 @@ Phase 1.1 — Rendering Foundation
 - Viewport visible-world-bounds calculation
 - Canvas free of entity-specific rendering and Zoom Extents branches
 - Reused render-scene storage for paint-loop efficiency
-- Repeating two-point LINE sessions creating independent, separately undoable LineEntity objects
+- Continuous LINE sessions creating connected, separate, independently undoable LineEntity objects
 - Repeated endpoint/midpoint-snapped paste placement from one immutable clipboard snapshot
 - Right-click exit for LINE and repeated paste without geometry or history mutation
 
@@ -104,7 +104,7 @@ Passing:
 
 ## Last Known Status
 Phases 1.0 and 1.0.1 are HUMAN ACCEPTED. Phase 1.1 live-review corrections for
-independent two-point LINE creation and repeated object-snapped paste placement
+continuous LINE creation and repeated object-snapped paste placement
 plus shared right-click command exit pass all automated tests in the Debug
 MSVC/Qt configuration. The normal application is launched at the end of the
 corrective run for renewed human acceptance; automated verification does not
@@ -135,7 +135,7 @@ Do not bypass command/transaction architecture.
 ## Phase 1.1 Acceptance Status
 
 AUTOMATED COMPLETE after the phase commit is pushed. HUMAN ACCEPTED remains
-pending until the user verifies repeating independent two-point LINE creation,
+pending until the user verifies continuous connected LINE creation,
 repeated snapped paste placement from one invocation, persistent lines, selection
 highlight, right-click command exit, lineweight display, zoom/pan, transient
 overlays, undo/redo redraw, and absence of obvious flicker or rendering regressions

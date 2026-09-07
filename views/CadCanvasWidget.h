@@ -29,6 +29,7 @@ public:
     );
     void setStateChangedCallback(std::function<void()> callback);
     void cancelActiveTool();
+    [[nodiscard]] arz::geometry::Point2D hoverWorldPoint() const noexcept;
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -55,9 +56,6 @@ private:
     std::function<void(arz::geometry::Point2D)> coordinatesChanged_;
     std::function<void()> stateChanged_;
     bool panning_{false};
-    bool leftPressed_{false};
-    bool selectionDragging_{false};
-    QPointF leftPressPosition_{};
     bool viewportInitialized_{false};
 };
 

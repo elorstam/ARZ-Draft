@@ -50,9 +50,12 @@ void CadApplicationController::setCommandBuffer(std::string text) {
 
 bool CadApplicationController::confirmInput() {
     if (!commandInput_.buffer().empty()) {
-        const auto text = commandInput_.buffer();
+        const auto text = overlayState_.selectedSuggestion().value_or(commandInput_.buffer());
         commandInput_.clearBuffer();
         return invokeCommandText(text);
+    }
+    if (overlayState_.pastePlacement()) {
+        return commitPaste(overlayState_.pastePlacement()->insertionPoint);
     }
     if (lineInput_.state() != arz::interaction::LineInputState::Inactive) {
         updateOverlayText();
@@ -65,6 +68,8 @@ bool CadApplicationController::confirmInput() {
 bool CadApplicationController::escape() {
     if (overlayState_.selectionWindow()) {
         overlayState_.clearSelectionWindow();
+    } else if (overlayState_.pastePlacement()) {
+        overlayState_.clearPastePlacement();
     } else if (lineInput_.state() != arz::interaction::LineInputState::Inactive) {
         lineInput_.cancel();
     } else if (!commandInput_.buffer().empty()) {
@@ -87,11 +92,33 @@ bool CadApplicationController::invokeCommandText(std::string_view text) {
     return invoke(*descriptor);
 }
 bool CadApplicationController::rightClick() { return confirmInput(); }
+void CadApplicationController::selectPreviousSuggestion() noexcept {
+    overlayState_.selectPreviousSuggestion();
+}
+void CadApplicationController::selectNextSuggestion() noexcept {
+    overlayState_.selectNextSuggestion();
+}
+
+void CadApplicationController::updatePointer(arz::geometry::Point2D worldPoint) {
+    if (overlayState_.selectionWindow()) overlayState_.updateSelectionWindow(worldPoint);
+    if (!overlayState_.pastePlacement()) return;
+    const auto base = clipboard_.basePoint();
+    const arz::geometry::Point2D delta{worldPoint.x - base.x, worldPoint.y - base.y};
+    arz::interaction::PastePlacementOverlay placement{base, worldPoint, {}};
+    for (const auto& source : clipboard_.lines()) {
+        placement.lines.push_back({
+            {source.start.x + delta.x, source.start.y + delta.y},
+            {source.end.x + delta.x, source.end.y + delta.y}
+        });
+    }
+    overlayState_.setPastePlacement(std::move(placement));
+}
 
 bool CadApplicationController::invoke(const arz::interaction::CommandDescriptor& descriptor) {
     bool succeeded = false;
     switch (descriptor.command) {
     case arz::interaction::CadCommand::Line:
+        overlayState_.clearPastePlacement();
         lineInput_.activate();
         succeeded = true;
         break;
@@ -108,6 +135,9 @@ bool CadApplicationController::invoke(const arz::interaction::CommandDescriptor&
 CanvasAction CadApplicationController::canvasClick(arz::geometry::Point2D worldPoint,
                                                     double worldTolerance,
                                                     bool shiftModifier) {
+    if (overlayState_.pastePlacement()) {
+        return commitPaste(worldPoint) ? CanvasAction::EntityCreated : CanvasAction::None;
+    }
     if (lineInput_.state() != arz::interaction::LineInputState::Inactive) {
         if (const auto snap = snapCandidate(worldPoint, worldTolerance)) worldPoint = snap->point;
         const auto input = lineInput_.acceptPoint(worldPoint);
@@ -127,9 +157,17 @@ CanvasAction CadApplicationController::canvasClick(arz::geometry::Point2D worldP
         return CanvasAction::EntityCreated;
     }
 
+    if (overlayState_.selectionWindow()) {
+        overlayState_.updateSelectionWindow(worldPoint);
+        return finishSelectionWindow(shiftModifier)
+            ? CanvasAction::SelectionChanged : CanvasAction::None;
+    }
     const auto picked = selectionService_.pointPick(worldPoint, worldTolerance);
     if (picked.empty()) {
         if (!shiftModifier) selection_.clear();
+        overlayState_.beginSelectionWindow(worldPoint);
+        updateOverlayText();
+        return CanvasAction::SelectionWindowStarted;
     } else if (shiftModifier) {
         selection_.toggle(picked.front());
     } else {
@@ -167,6 +205,8 @@ std::optional<arz::cad::SnapResult> CadApplicationController::snapCandidate(
 
 bool CadApplicationController::undo() {
     lineInput_.cancel();
+    overlayState_.clearPastePlacement();
+    overlayState_.clearSelectionWindow();
     if (!history_.undo()) return false;
     if (!rebuildSpatialIndex()) {
         (void)history_.redo();
@@ -178,6 +218,8 @@ bool CadApplicationController::undo() {
 }
 bool CadApplicationController::redo() {
     lineInput_.cancel();
+    overlayState_.clearPastePlacement();
+    overlayState_.clearSelectionWindow();
     if (!history_.redo()) return false;
     if (!rebuildSpatialIndex()) {
         (void)history_.undo();
@@ -201,20 +243,38 @@ bool CadApplicationController::copySelection() {
 bool CadApplicationController::cutSelection() { return copySelection() && deleteSelection(); }
 bool CadApplicationController::paste() {
     if (clipboard_.empty()) return false;
-    const double offset = 100.0 * static_cast<double>(clipboard_.pasteGeneration() + 1);
+    lineInput_.cancel();
+    commandInput_.clearBuffer();
+    overlayState_.clearSelectionWindow();
+    const auto base = clipboard_.basePoint();
+    arz::interaction::PastePlacementOverlay placement{base, base, {}};
+    for (const auto& source : clipboard_.lines())
+        placement.lines.push_back({source.start, source.end});
+    overlayState_.setPastePlacement(std::move(placement));
+    updateOverlayText();
+    return true;
+}
+
+bool CadApplicationController::commitPaste(arz::geometry::Point2D insertionPoint) {
+    if (clipboard_.empty() || !overlayState_.pastePlacement()) return false;
+    const auto base = clipboard_.basePoint();
+    const arz::geometry::Point2D delta{insertionPoint.x - base.x, insertionPoint.y - base.y};
     std::vector<arz::cad::LineCreationData> lines;
     for (const auto& source : clipboard_.lines()) {
         lines.push_back({source.layerId,
-            {source.start.x + offset, source.start.y + offset},
-            {source.end.x + offset, source.end.y + offset}, source.graphics});
+            {source.start.x + delta.x, source.start.y + delta.y},
+            {source.end.x + delta.x, source.end.y + delta.y}, source.graphics});
     }
     auto command = std::make_unique<arz::cad::AddLinesCommand>(document_, std::move(lines));
     auto* view = command.get();
     if (!history_.execute(std::move(command))) return false;
     selection_.replace(view->objectIds());
-    clipboard_.advancePasteGeneration();
+    overlayState_.clearPastePlacement();
     synchronizeAfterModelChange();
     return true;
+}
+bool CadApplicationController::pastePlacementActive() const noexcept {
+    return overlayState_.pastePlacement().has_value();
 }
 bool CadApplicationController::selectAll() {
     std::vector<arz::core::ObjectId> selectable;
@@ -254,6 +314,8 @@ arz::interaction::LineInputState CadApplicationController::lineInputState() cons
 std::optional<arz::geometry::Point2D> CadApplicationController::lineStartPoint() const noexcept { return lineInput_.firstPoint(); }
 std::string CadApplicationController::commandPrompt() const {
     using arz::interaction::LineInputState;
+    if (overlayState_.pastePlacement()) return "PASTE: Specify insertion point";
+    if (overlayState_.selectionWindow()) return "Specify opposite corner";
     if (lineInput_.state() == LineInputState::AwaitingFirstPoint) return "LINE: Specify first point";
     if (lineInput_.state() == LineInputState::AwaitingSecondPoint) return "LINE: Specify next point";
     return "Command:";
@@ -270,8 +332,14 @@ void CadApplicationController::synchronizeAfterModelChange() {
 void CadApplicationController::updateOverlayText() {
     using arz::interaction::DraftingToggle;
     using arz::interaction::LineInputState;
+    std::vector<std::string> suggestions;
+    for (const auto& descriptor : commandRegistry_.suggest(commandInput_.buffer()))
+        suggestions.push_back(descriptor.canonicalName);
+    overlayState_.setCommandSuggestions(std::move(suggestions));
     if (!draftingSettings_.enabled(DraftingToggle::DynamicInput)) overlayState_.setDynamicText({});
     else if (!commandInput_.buffer().empty()) overlayState_.setDynamicText(commandInput_.buffer());
+    else if (overlayState_.pastePlacement()) overlayState_.setDynamicText("Specify insertion point");
+    else if (overlayState_.selectionWindow()) overlayState_.setDynamicText("Specify opposite corner");
     else if (lineInput_.state() == LineInputState::AwaitingFirstPoint) overlayState_.setDynamicText("Specify first point");
     else if (lineInput_.state() == LineInputState::AwaitingSecondPoint) overlayState_.setDynamicText("Specify next point");
     else overlayState_.setDynamicText({});

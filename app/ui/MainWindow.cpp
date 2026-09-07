@@ -279,11 +279,17 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
     else if (control && key->key() == Qt::Key_Y) performRedo();
     else if (control && key->key() == Qt::Key_C) { (void)controller_.copySelection(); refreshUi(); }
     else if (control && key->key() == Qt::Key_X) { (void)controller_.cutSelection(); canvas_->update(); refreshUi(); }
-    else if (control && key->key() == Qt::Key_V) { (void)controller_.paste(); canvas_->update(); refreshUi(); }
+    else if (control && key->key() == Qt::Key_V) {
+        if (!key->isAutoRepeat() && controller_.paste())
+            controller_.updatePointer(canvas_->hoverWorldPoint());
+        canvas_->update(); refreshUi();
+    }
     else if (control && key->key() == Qt::Key_A) { (void)controller_.selectAll(); canvas_->update(); refreshUi(); }
     else if (key->key() == Qt::Key_Delete) { (void)controller_.deleteSelection(); canvas_->update(); refreshUi(); }
     else if (key->key() == Qt::Key_Escape) { (void)controller_.escape(); canvas_->update(); refreshUi(); }
     else if (key->key() == Qt::Key_Backspace) { controller_.backspaceCommandBuffer(); canvas_->update(); refreshUi(); }
+    else if (key->key() == Qt::Key_Up) { controller_.selectPreviousSuggestion(); canvas_->update(); }
+    else if (key->key() == Qt::Key_Down) { controller_.selectNextSuggestion(); canvas_->update(); }
     else if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter || key->key() == Qt::Key_Space) {
         (void)controller_.confirmInput(); canvas_->update(); refreshUi();
     } else if (key->key() >= Qt::Key_F3 && key->key() <= Qt::Key_F12) {

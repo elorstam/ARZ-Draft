@@ -26,12 +26,11 @@ public:
     void clear() noexcept;
     [[nodiscard]] const std::vector<ClipboardLine>& lines() const noexcept;
     [[nodiscard]] bool empty() const noexcept;
-    [[nodiscard]] std::size_t pasteGeneration() const noexcept;
-    void advancePasteGeneration() noexcept;
+    [[nodiscard]] arz::geometry::Point2D basePoint() const noexcept;
 
 private:
     std::vector<ClipboardLine> lines_;
-    std::size_t pasteGeneration_{0};
+    arz::geometry::Point2D basePoint_{};
 };
 
 }

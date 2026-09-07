@@ -3,6 +3,7 @@
 #include <string_view>
 
 #include "app/application/CadApplicationController.h"
+#include "cad/entities/LineEntity.h"
 #include "interaction/commands/CommandInputState.h"
 #include "interaction/commands/CommandRegistry.h"
 #include "interaction/drafting/DraftingSettings.h"
@@ -42,6 +43,34 @@ bool testCommandInputContract() {
         && controller.commandInput().history().back() == "LINE";
 }
 
+bool testCommandSuggestions() {
+    using arz::interaction::CadCommand;
+    using arz::interaction::CommandDescriptor;
+    arz::interaction::CommandRegistry registry({
+        {CadCommand::Line, "LINE", {"L"}, true},
+        {CadCommand::Unknown, "LAYER", {"LA"}, false},
+        {CadCommand::Unknown, "LENGTHEN", {"LEN"}, false},
+        {CadCommand::Unknown, "LINETYPE", {"LT"}, false}
+    });
+    const auto lower = registry.suggest("l");
+    if (lower.size() != 4 || lower[0].canonicalName != "LINE"
+        || lower[1].canonicalName != "LAYER"
+        || lower[2].canonicalName != "LENGTHEN"
+        || lower[3].canonicalName != "LINETYPE") return false;
+    const auto filtered = registry.suggest("len");
+    if (filtered.size() != 1 || filtered.front().canonicalName != "LENGTHEN") return false;
+    const auto alias = registry.suggest("la");
+    if (alias.empty() || alias.front().canonicalName != "LAYER") return false;
+
+    arz::app::CadApplicationController controller;
+    controller.appendCommandCharacter('l');
+    return controller.overlayState().commandSuggestions()
+            == std::vector<std::string>{"LINE"}
+        && controller.overlayState().selectedSuggestionIndex() == 0
+        && controller.confirmInput()
+        && controller.lineInputState() == arz::interaction::LineInputState::AwaitingFirstPoint;
+}
+
 bool testEscapePriority() {
     arz::app::CadApplicationController controller;
     if (!addLine(controller, {0, 0}, {100, 0})) return false;
@@ -71,17 +100,29 @@ bool testSelectionSetAndWindows() {
     (void)controller.canvasClick({15, 15}, 1.0, true);
     if (controller.selection().size() != 1) return false;
     (void)controller.canvasClick({500, 500}, 1.0);
-    if (!controller.selection().empty()) return false;
+    if (!controller.selection().empty() || !controller.escape()) return false;
 
-    controller.beginSelectionWindow({0, 0});
-    controller.updateSelectionWindow({100, 100});
-    if (!controller.finishSelectionWindow(false) || controller.selection().size() != 1) return false;
-    controller.beginSelectionWindow({100, 100});
-    controller.updateSelectionWindow({0, 0});
-    if (!controller.finishSelectionWindow(false) || controller.selection().size() != 2) return false;
-    controller.beginSelectionWindow({100, 100});
-    controller.updateSelectionWindow({0, 0});
-    if (!controller.finishSelectionWindow(true) || !controller.selection().empty()) return false;
+    if (controller.canvasClick({0, 0}, 0.1) != arz::app::CanvasAction::SelectionWindowStarted
+        || !controller.overlayState().selectionWindow()) return false;
+    controller.updatePointer({100, 100});
+    if (controller.overlayState().selectionWindow()->current != arz::geometry::Point2D{100, 100}
+        || controller.canvasClick({100, 100}, 0.1) != arz::app::CanvasAction::SelectionChanged
+        || controller.selection().size() != 1) return false;
+    if (controller.canvasClick({100, 100}, 0.1) != arz::app::CanvasAction::SelectionWindowStarted)
+        return false;
+    controller.updatePointer({0, 0});
+    if (controller.canvasClick({0, 0}, 0.1) != arz::app::CanvasAction::SelectionChanged
+        || controller.selection().size() != 2) return false;
+    if (controller.canvasClick({100, 100}, 0.1, true) != arz::app::CanvasAction::SelectionWindowStarted)
+        return false;
+    controller.updatePointer({0, 0});
+    (void)controller.canvasClick({0, 0}, 0.1, true);
+    if (!controller.selection().empty()) return false;
+    (void)controller.canvasClick({500, 500}, 0.1);
+    if (!controller.overlayState().selectionWindow() || !controller.escape()
+        || controller.overlayState().selectionWindow()) return false;
+    (void)controller.canvasClick({15, 15}, 1.0);
+    if (controller.overlayState().selectionWindow()) return false;
     return controller.selectAll() && controller.selection().size() == 3;
 }
 
@@ -98,16 +139,91 @@ bool testDeleteClipboardTransactions() {
         || controller.document().objectCount() != 0) return false;
     if (!controller.undo() || controller.document().objectCount() != 2) return false;
     if (!controller.redo() || controller.document().objectCount() != 0 || !controller.undo()) return false;
-    if (!controller.paste() || controller.document().objectCount() != 4
-        || controller.selection().size() != 2) return false;
+    if (!controller.paste() || !controller.pastePlacementActive()
+        || controller.document().objectCount() != 2) return false;
+    const auto* source = dynamic_cast<const arz::cad::LineEntity*>(
+        controller.document().object(originalIds.front()));
+    if (!source) return false;
+    const auto sourceStart = source->start();
+    const auto sourceEnd = source->end();
+    for (int index = 0; index < 100; ++index)
+        controller.updatePointer({1000.0 + index * 3.0, 500.0 - index * 2.0});
+    if (controller.document().objectCount() != 2
+        || controller.overlayState().pastePlacement()->lines.size() != 2
+        || source->start() != sourceStart || source->end() != sourceEnd) return false;
+    const auto preview = controller.overlayState().pastePlacement()->lines.front();
+    const auto insertion = controller.overlayState().pastePlacement()->insertionPoint;
+    const auto base = controller.clipboard().basePoint();
+    if (preview.start != arz::geometry::Point2D{
+            sourceStart.x + insertion.x - base.x,
+            sourceStart.y + insertion.y - base.y}) return false;
+    if (controller.canvasClick(insertion, 0.1) != arz::app::CanvasAction::EntityCreated
+        || controller.document().objectCount() != 4
+        || controller.selection().size() != 2 || controller.pastePlacementActive()) return false;
     for (const auto id : controller.selection().ids()) {
         if (std::ranges::find(originalIds, id) != originalIds.end()) return false;
     }
     if (!controller.undo() || controller.document().objectCount() != 2
         || !controller.redo() || controller.document().objectCount() != 4) return false;
+    if (!controller.selectAll() || !controller.copySelection() || !controller.paste()) return false;
+    for (int index = 0; index < 50; ++index) controller.updatePointer({-index * 4.0, index * 7.0});
+    if (controller.document().objectCount() != 4
+        || controller.overlayState().pastePlacement()->lines.size() != 4) return false;
+    const auto secondInsertion = controller.overlayState().pastePlacement()->insertionPoint;
+    if (controller.canvasClick(secondInsertion, 0.1) != arz::app::CanvasAction::EntityCreated
+        || controller.document().objectCount() != 8) return false;
     if (!controller.selectAll()) return false;
     if (!controller.cutSelection() || controller.document().objectCount() != 0) return false;
-    return controller.undo() && controller.document().objectCount() == 4;
+    return controller.undo() && controller.document().objectCount() == 8;
+}
+
+bool testPasteCancelDoesNotMutateDocument() {
+    arz::app::CadApplicationController controller;
+    if (!addLine(controller, {0, 0}, {100, 25}) || !controller.copySelection()) return false;
+    if (!controller.paste()) return false;
+    for (int index = 0; index < 20; ++index) controller.updatePointer({index * 10.0, index * 5.0});
+    return controller.document().objectCount() == 1 && controller.escape()
+        && !controller.pastePlacementActive() && controller.document().objectCount() == 1;
+}
+
+bool testSingleLinePasteRegression() {
+    arz::app::CadApplicationController controller;
+    if (!addLine(controller, {25, 40}, {125, 65}) || !controller.copySelection()) return false;
+    const auto sourceId = controller.selectedObjectId();
+    const auto* source = dynamic_cast<const arz::cad::LineEntity*>(controller.document().object(sourceId));
+    if (!source) return false;
+    const auto sourceStart = source->start();
+    const auto sourceEnd = source->end();
+    if (!controller.paste()) return false;
+    for (int repeat = 0; repeat < 20; ++repeat) {
+        if (!controller.paste() || controller.document().objectCount() != 1) return false;
+    }
+    for (int index = 0; index < 200; ++index)
+        controller.updatePointer({500.0 - index * 2.0, -300.0 + index * 1.5});
+    if (controller.document().objectCount() != 1
+        || controller.overlayState().pastePlacement()->lines.size() != 1) return false;
+    const auto insertion = controller.overlayState().pastePlacement()->insertionPoint;
+    if (controller.canvasClick(insertion, 0.1) != arz::app::CanvasAction::EntityCreated
+        || controller.document().objectCount() != 2
+        || controller.selectedObjectId() == sourceId
+        || source->start() != sourceStart || source->end() != sourceEnd) return false;
+    const auto pastedId = controller.selectedObjectId();
+    if (!controller.undo() || controller.document().objectCount() != 1
+        || controller.document().contains(pastedId)) return false;
+    return controller.redo() && controller.document().objectCount() == 2
+        && controller.document().contains(pastedId);
+}
+
+bool testSuggestionNavigationState() {
+    arz::interaction::OverlayState overlay;
+    overlay.setCommandSuggestions({"LINE", "LINETYPE", "LENGTHEN"});
+    if (overlay.selectedSuggestion() != "LINE") return false;
+    overlay.selectNextSuggestion();
+    if (overlay.selectedSuggestion() != "LINETYPE") return false;
+    overlay.selectPreviousSuggestion();
+    if (overlay.selectedSuggestion() != "LINE") return false;
+    overlay.selectPreviousSuggestion();
+    return overlay.selectedSuggestion() == "LENGTHEN";
 }
 
 bool testDraftingStateAndStaleCleanup() {
@@ -141,9 +257,13 @@ int main() {
         if (!passed) ++failures;
     };
     run("CommandInputContract", testCommandInputContract());
+    run("CommandSuggestions", testCommandSuggestions());
     run("EscapePriority", testEscapePriority());
     run("SelectionSetAndWindows", testSelectionSetAndWindows());
     run("DeleteClipboardTransactions", testDeleteClipboardTransactions());
+    run("PasteCancelDoesNotMutateDocument", testPasteCancelDoesNotMutateDocument());
+    run("SingleLinePasteRegression", testSingleLinePasteRegression());
+    run("SuggestionNavigationState", testSuggestionNavigationState());
     run("DraftingStateAndStaleCleanup", testDraftingStateAndStaleCleanup());
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

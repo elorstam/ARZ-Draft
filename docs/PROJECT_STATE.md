@@ -70,6 +70,10 @@ Phase 1.0.1 — CAD Interaction Foundation
 - Right-click confirm/repeat policy
 - Middle-button double-click Zoom Extents
 - Durable CAD interaction contract
+- Registry-driven command autocomplete with keyboard suggestion navigation
+- CAD-style two-click Window/Crossing selection
+- Interactive immutable-source paste preview and single-click commit
+- Ctrl+V auto-repeat protection and copy/paste geometry-explosion regression coverage
 
 ## Tests
 Passing:
@@ -89,6 +93,10 @@ Passing:
 All Phase 1.0 and Phase 1.0.1 automated tests pass in the Debug MSVC/Qt
 configuration. The normal application is launched at the end of the phase for
 human acceptance; automated verification does not substitute for that acceptance.
+
+The first Phase 1.0.1 manual review was not accepted. Its command suggestion,
+two-click selection, and interactive paste findings have been corrected and await
+a new human acceptance pass.
 
 ## Spatial Index Synchronization
 The spatial index is a derived service outside Document. Phase 0.9

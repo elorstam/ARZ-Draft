@@ -48,6 +48,10 @@ void CadCanvasWidget::cancelActiveTool() {
     }
 }
 
+arz::geometry::Point2D CadCanvasWidget::hoverWorldPoint() const noexcept {
+    return hoverWorld_;
+}
+
 void CadCanvasWidget::paintEvent(QPaintEvent*) {
     QPainter painter(this);
     const auto previewStart = controller_.lineStartPoint();
@@ -96,17 +100,8 @@ void CadCanvasWidget::mouseMoveEvent(QMouseEvent* event) {
         lastPanPosition_ = position;
     }
 
-    if (leftPressed_
-        && controller_.lineInputState() == arz::interaction::LineInputState::Inactive) {
-        const QPointF delta = position - leftPressPosition_;
-        if (!selectionDragging_ && std::hypot(delta.x(), delta.y()) >= 4.0) {
-            selectionDragging_ = true;
-            controller_.beginSelectionWindow(toWorld(leftPressPosition_));
-        }
-        if (selectionDragging_) controller_.updateSelectionWindow(toWorld(position));
-    }
-
     updateHover(position);
+    controller_.updatePointer(hoverWorld_);
     update();
 }
 
@@ -130,17 +125,12 @@ void CadCanvasWidget::mousePressEvent(QMouseEvent* event) {
 
     setFocus();
     updateHover(event->position());
-    if (controller_.lineInputState() != arz::interaction::LineInputState::Inactive) {
-        (void)controller_.canvasClick(hoverWorld_, worldTolerance(),
-            event->modifiers().testFlag(Qt::ShiftModifier));
-        updateHover(event->position());
-        update();
-        if (stateChanged_) stateChanged_();
-    } else {
-        leftPressed_ = true;
-        selectionDragging_ = false;
-        leftPressPosition_ = event->position();
-    }
+    (void)controller_.canvasClick(hoverWorld_, worldTolerance(),
+        event->modifiers().testFlag(Qt::ShiftModifier));
+    updateHover(event->position());
+    controller_.updatePointer(hoverWorld_);
+    update();
+    if (stateChanged_) stateChanged_();
 }
 
 void CadCanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
@@ -148,21 +138,6 @@ void CadCanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
         panning_ = false;
         setCursor(Qt::CrossCursor);
         return;
-    }
-    if (event->button() == Qt::LeftButton && leftPressed_) {
-        updateHover(event->position());
-        if (selectionDragging_) {
-            controller_.updateSelectionWindow(hoverWorld_);
-            (void)controller_.finishSelectionWindow(
-                event->modifiers().testFlag(Qt::ShiftModifier));
-        } else {
-            (void)controller_.canvasClick(hoverWorld_, worldTolerance(),
-                event->modifiers().testFlag(Qt::ShiftModifier));
-        }
-        leftPressed_ = false;
-        selectionDragging_ = false;
-        update();
-        if (stateChanged_) stateChanged_();
     }
 }
 
@@ -214,6 +189,10 @@ void CadCanvasWidget::keyPressEvent(QKeyEvent* event) {
     }
     if (event->key() == Qt::Key_Backspace) {
         controller_.backspaceCommandBuffer();
+    } else if (event->key() == Qt::Key_Up) {
+        controller_.selectPreviousSuggestion();
+    } else if (event->key() == Qt::Key_Down) {
+        controller_.selectNextSuggestion();
     } else if (event->key() == Qt::Key_Return
                || event->key() == Qt::Key_Enter
                || event->key() == Qt::Key_Space) {

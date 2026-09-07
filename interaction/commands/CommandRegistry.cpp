@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <utility>
 
 namespace arz::interaction {
 
@@ -31,6 +32,10 @@ CommandRegistry::CommandRegistry()
       } {
 }
 
+CommandRegistry::CommandRegistry(std::vector<CommandDescriptor> commands)
+    : commands_(std::move(commands)) {
+}
+
 std::optional<CommandDescriptor> CommandRegistry::resolve(
     std::string_view text
 ) const {
@@ -43,6 +48,32 @@ std::optional<CommandDescriptor> CommandRegistry::resolve(
         }
     }
     return std::nullopt;
+}
+
+std::vector<CommandDescriptor> CommandRegistry::suggest(
+    std::string_view prefix
+) const {
+    const auto candidate = normalized(prefix);
+    if (candidate.empty()) return {};
+    struct Match final { CommandDescriptor descriptor; int rank{}; };
+    std::vector<Match> matches;
+    for (const auto& descriptor : commands_) {
+        int rank = 3;
+        if (descriptor.canonicalName == candidate) rank = 0;
+        else if (descriptor.canonicalName.starts_with(candidate)) rank = 1;
+        for (const auto& alias : descriptor.aliases) {
+            if (alias == candidate) rank = std::min(rank, 0);
+            else if (alias.starts_with(candidate)) rank = std::min(rank, 2);
+        }
+        if (rank < 3) matches.push_back({descriptor, rank});
+    }
+    std::ranges::sort(matches, [](const Match& left, const Match& right) {
+        if (left.rank != right.rank) return left.rank < right.rank;
+        return left.descriptor.canonicalName < right.descriptor.canonicalName;
+    });
+    std::vector<CommandDescriptor> result;
+    for (auto& match : matches) result.push_back(std::move(match.descriptor));
+    return result;
 }
 
 }

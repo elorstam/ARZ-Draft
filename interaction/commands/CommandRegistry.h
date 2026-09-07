@@ -25,9 +25,13 @@ struct CommandDescriptor final {
 class CommandRegistry final {
 public:
     CommandRegistry();
+    explicit CommandRegistry(std::vector<CommandDescriptor> commands);
 
     [[nodiscard]] std::optional<CommandDescriptor> resolve(
         std::string_view text
+    ) const;
+    [[nodiscard]] std::vector<CommandDescriptor> suggest(
+        std::string_view prefix
     ) const;
 
 private:

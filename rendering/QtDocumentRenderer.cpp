@@ -111,6 +111,13 @@ void QtDocumentRenderer::render(
         );
     }
 
+    if (const auto& paste = overlays.pastePlacement()) {
+        painter.setPen(QPen(QColor(110, 220, 255, 210), 1.4, Qt::DashLine));
+        for (const auto& line : paste->lines) {
+            painter.drawLine(screenPoint(viewport, line.start), screenPoint(viewport, line.end));
+        }
+    }
+
     if (snap) {
         const QPointF marker = screenPoint(viewport, snap->point);
         painter.setPen(QPen(QColor(90, 235, 170), 1.5));
@@ -164,6 +171,22 @@ void QtDocumentRenderer::render(
         painter.fillRect(box, QColor(35, 43, 52, 235));
         painter.setPen(QColor(235, 240, 245));
         painter.drawText(box, Qt::AlignCenter, text);
+        double suggestionY = box.bottom() + 2.0;
+        for (std::size_t index = 0; index < overlays.commandSuggestions().size(); ++index) {
+            const QString suggestion = QString::fromStdString(overlays.commandSuggestions()[index]);
+            const QRect suggestionBounds = painter.fontMetrics().boundingRect(suggestion);
+            const QRectF suggestionBox(
+                QPointF(box.left(), suggestionY),
+                QSizeF(std::max(box.width(), suggestionBounds.width() + 18.0),
+                       suggestionBounds.height() + 8.0)
+            );
+            painter.fillRect(suggestionBox, index == overlays.selectedSuggestionIndex()
+                ? QColor(32, 115, 160, 245) : QColor(30, 37, 45, 245));
+            painter.setPen(QColor(235, 240, 245));
+            painter.drawText(suggestionBox.adjusted(7.0, 0.0, -4.0, 0.0),
+                             Qt::AlignVCenter | Qt::AlignLeft, suggestion);
+            suggestionY = suggestionBox.bottom() + 1.0;
+        }
     }
 }
 

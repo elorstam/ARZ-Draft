@@ -23,6 +23,12 @@ editor/view of that same state. Dynamic input renders the same buffer near the
 cursor. A command invocation is recorded by canonical name only after successful
 dispatch.
 
+The registry also supplies case-insensitive prefix suggestions across canonical
+names and aliases. The transient suggestion list filters after every character or
+Backspace, selects the best deterministic result by default, and supports cyclic
+Up/Down navigation. Enter or Space invokes the selected canonical command. Adding
+a registered command automatically makes it eligible without widget changes.
+
 Enter and Space use this state order:
 
 1. A nonempty buffer is resolved and invoked.
@@ -37,11 +43,12 @@ has no keyboard default point, so confirmation preserves its current prompt.
 
 Escape is idempotent and follows this priority:
 
-1. Cancel a transient selection drag.
-2. Cancel the active command and its current step data.
-3. Clear the typed command buffer.
-4. Clear the selection set.
-5. Remain idle.
+1. Cancel a pending two-click selection rectangle.
+2. Cancel transient paste placement without model mutation.
+3. Cancel the active command and its current step data.
+4. Clear the typed command buffer and suggestions.
+5. Clear the selection set.
+6. Remain idle.
 
 Undo and redo safely cancel active LINE input and remove stale selection IDs after
 spatial-index synchronization.
@@ -59,12 +66,14 @@ removed after model transactions.
 - Properties show entity details only for exactly one supported entity; multiple
   selection is reported as a count.
 
-Left-to-right drag uses `SelectionService::containedWindow`: only completely
-contained entities are included. Right-to-left drag uses
-`SelectionService::crossingWindow`: contained and intersecting entities are
-included. Shift+drag removes matching entities. The controller chooses the query;
-the widget only supplies drag points. Clicks below the screen drag threshold remain
-point picks.
+An empty first click stores the first selection corner. Mouse movement updates the
+opposite transient corner without a held button, and a second click commits.
+Left-to-right uses `SelectionService::containedWindow`: only completely contained
+entities are included. Right-to-left uses `SelectionService::crossingWindow`:
+contained and intersecting entities are included. Shift on the two-click operation
+removes matching entities. A direct entity hit remains a point pick and never
+starts the rectangle. The controller chooses the query; the widget only supplies
+click and pointer coordinates.
 
 The selection model is deliberately independent of command state. Future editing
 commands can consume a preselection, or enter a Select objects state and use the
@@ -76,13 +85,19 @@ Delete never mutates the model from a key handler. One `DeleteEntitiesCommand`
 extracts all selected supported entities as one history entry. Undo restores their
 original objects and IDs; redo removes them again.
 
-The internal CAD clipboard stores deterministic value snapshots, currently for
-Line entities. It stores layer, geometry, and graphics data, never entity pointers.
-Copy does not mutate the document. Cut is copy followed by one undoable multi-delete
-transaction. Paste uses one `AddLinesCommand`, assigns new IDs once, and offsets
-each paste generation by +100 mm in X and Y. Undo removes the complete paste and
-redo restores the same pasted IDs. Future entity snapshot variants and interactive
-base-point placement can extend this boundary without changing UI routing.
+The internal CAD clipboard stores immutable deterministic value snapshots,
+currently for Line entities. It stores layer, geometry, graphics data, and a base
+point at the copied set's minimum bounds corner—never entity pointers. Copy does
+not mutate the document. Cut is copy followed by one undoable multi-delete
+transaction.
+
+Ctrl+V enters transient paste placement without creating document objects. Every
+pointer update computes `preview = immutable clipboard source + absolute placement
+delta`; preview data is never used as the next source. One click (or confirm at the
+current insertion point) constructs final values once and executes one
+`AddLinesCommand`. New IDs are assigned once. Undo removes exactly that pasted set
+and redo restores the same IDs. Escape discards the preview without mutation. The
+stored base-point boundary is ready for future COPYBASE support.
 
 ## Shortcut and Focus Routing
 
@@ -115,8 +130,8 @@ claim geometric behavior that has not been implemented.
 
 ## Transient Overlays
 
-Dynamic text, command prompts, selection/crossing rectangles, snap markers,
-crosshair, LINE preview, and future tracking/preview graphics are interaction or
+Dynamic text, registry suggestions, command prompts, selection/crossing rectangles,
+paste previews, snap markers, crosshair, LINE preview, and future tracking graphics are interaction or
 view state. They are not document objects, receive no `ObjectId`, cannot be selected
 or saved, and do not affect persistent bounds.
 

@@ -121,6 +121,12 @@ drawing/editing commands:
 - undoable atomic Delete, Cut and Paste with an internal CAD clipboard
 - global focus-safe shortcuts and shared drafting toggles
 - right-click routing and Zoom Extents
+- registry-driven command autocomplete
+- two-click Window/Crossing selection
+- interactive immutable-source paste placement
+
+The initial manual review findings were corrected in a follow-up Phase 1.0.1
+commit. Human re-testing remains required.
 
 Phase 1.1 must not begin until this phase has been manually accepted.
 

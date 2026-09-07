@@ -1,5 +1,7 @@
 #include "interaction/clipboard/CadClipboard.h"
 
+#include <algorithm>
+
 #include "cad/entities/LineEntity.h"
 #include "core/document/Document.h"
 
@@ -20,14 +22,17 @@ bool CadClipboard::copy(
         return false;
     }
     lines_ = std::move(copied);
-    pasteGeneration_ = 0;
+    basePoint_ = lines_.front().start;
+    for (const auto& line : lines_) {
+        basePoint_.x = std::min({basePoint_.x, line.start.x, line.end.x});
+        basePoint_.y = std::min({basePoint_.y, line.start.y, line.end.y});
+    }
     return true;
 }
 
-void CadClipboard::clear() noexcept { lines_.clear(); pasteGeneration_ = 0; }
+void CadClipboard::clear() noexcept { lines_.clear(); basePoint_ = {}; }
 const std::vector<ClipboardLine>& CadClipboard::lines() const noexcept { return lines_; }
 bool CadClipboard::empty() const noexcept { return lines_.empty(); }
-std::size_t CadClipboard::pasteGeneration() const noexcept { return pasteGeneration_; }
-void CadClipboard::advancePasteGeneration() noexcept { ++pasteGeneration_; }
+arz::geometry::Point2D CadClipboard::basePoint() const noexcept { return basePoint_; }
 
 }

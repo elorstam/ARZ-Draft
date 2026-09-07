@@ -20,4 +20,33 @@ const std::optional<SelectionWindowOverlay>& OverlayState::selectionWindow() con
     return selectionWindow_;
 }
 
+void OverlayState::setCommandSuggestions(std::vector<std::string> suggestions) {
+    commandSuggestions_ = std::move(suggestions);
+    selectedSuggestionIndex_ = 0;
+}
+void OverlayState::selectPreviousSuggestion() noexcept {
+    if (commandSuggestions_.empty()) return;
+    selectedSuggestionIndex_ = selectedSuggestionIndex_ == 0
+        ? commandSuggestions_.size() - 1 : selectedSuggestionIndex_ - 1;
+}
+void OverlayState::selectNextSuggestion() noexcept {
+    if (!commandSuggestions_.empty())
+        selectedSuggestionIndex_ = (selectedSuggestionIndex_ + 1) % commandSuggestions_.size();
+}
+const std::vector<std::string>& OverlayState::commandSuggestions() const noexcept {
+    return commandSuggestions_;
+}
+std::size_t OverlayState::selectedSuggestionIndex() const noexcept { return selectedSuggestionIndex_; }
+std::optional<std::string> OverlayState::selectedSuggestion() const {
+    if (commandSuggestions_.empty()) return std::nullopt;
+    return commandSuggestions_[selectedSuggestionIndex_];
+}
+void OverlayState::setPastePlacement(PastePlacementOverlay placement) {
+    pastePlacement_ = std::move(placement);
+}
+void OverlayState::clearPastePlacement() noexcept { pastePlacement_.reset(); }
+const std::optional<PastePlacementOverlay>& OverlayState::pastePlacement() const noexcept {
+    return pastePlacement_;
+}
+
 }

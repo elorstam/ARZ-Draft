@@ -22,7 +22,7 @@
 
 namespace arz::app {
 
-enum class CanvasAction { None = 0, FirstLinePointAccepted, EntityCreated, SelectionChanged };
+enum class CanvasAction { None = 0, FirstLinePointAccepted, EntityCreated, SelectionChanged, SelectionWindowStarted };
 
 class CadApplicationController final {
 public:
@@ -36,6 +36,9 @@ public:
     [[nodiscard]] bool escape();
     [[nodiscard]] bool invokeCommandText(std::string_view text);
     [[nodiscard]] bool rightClick();
+    void selectPreviousSuggestion() noexcept;
+    void selectNextSuggestion() noexcept;
+    void updatePointer(arz::geometry::Point2D worldPoint);
 
     [[nodiscard]] CanvasAction canvasClick(arz::geometry::Point2D worldPoint,
                                            double worldTolerance,
@@ -52,6 +55,7 @@ public:
     bool copySelection();
     bool cutSelection();
     bool paste();
+    [[nodiscard]] bool pastePlacementActive() const noexcept;
     bool selectAll();
 
     [[nodiscard]] const arz::core::Document& document() const noexcept;
@@ -76,6 +80,7 @@ private:
     [[nodiscard]] bool rebuildSpatialIndex();
     void synchronizeAfterModelChange();
     void updateOverlayText();
+    [[nodiscard]] bool commitPaste(arz::geometry::Point2D insertionPoint);
 
     arz::core::Document document_;
     arz::core::TransactionHistory history_;

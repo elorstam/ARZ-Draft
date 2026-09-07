@@ -7,6 +7,8 @@
 #include <QApplication>
 #include <QComboBox>
 #include <QFrame>
+#include <QLineEdit>
+#include <QStackedWidget>
 #include <QTabBar>
 #include <QToolButton>
 
@@ -33,6 +35,10 @@ int main(int argc, char* argv[]) {
     QAction arcAction(QStringLiteral("Arc"), &application);
     QAction undoAction(QStringLiteral("Undo"), &application);
     QAction redoAction(QStringLiteral("Redo"), &application);
+    QAction copySelectionAction(QStringLiteral("Copy"), &application);
+    QAction cutAction(QStringLiteral("Cut"), &application);
+    QAction copyAction(QStringLiteral("Copy"), &application);
+    QAction pasteAction(QStringLiteral("Paste"), &application);
 
     arz::app::CadRibbonWidget ribbon({
         &exitAction,
@@ -41,15 +47,25 @@ int main(int argc, char* argv[]) {
         &circleAction,
         &arcAction,
         &undoAction,
-        &redoAction
+        &redoAction,
+        &copySelectionAction,
+        &cutAction,
+        &copyAction,
+        &pasteAction
     });
 
     bool passed = true;
-    const auto* tabs = ribbon.findChild<QTabBar*>(QStringLiteral("ribbonTabBar"));
+    auto* tabs = ribbon.findChild<QTabBar*>(QStringLiteral("ribbonTabBar"));
     passed &= expect(tabs != nullptr, "Ribbon tab bar exists");
-    passed &= expect(tabs != nullptr && tabs->count() == 7, "Ribbon has seven primary tabs");
+    passed &= expect(ribbon.height() == arz::app::RibbonMetrics::TotalHeight,
+                     "Ribbon uses centralized compact total height");
+    passed &= expect(arz::app::RibbonMetrics::LargeIcon < 32
+                     && arz::app::RibbonMetrics::SmallIcon <= 16,
+                     "Ribbon uses compact centralized icon metrics");
+    passed &= expect(tabs != nullptr && tabs->count() == 11, "Ribbon has eleven CAD workspace tabs");
     passed &= expect(tabs != nullptr && tabs->tabText(0) == QStringLiteral("Home"), "Home is the first ribbon tab");
-    passed &= expect(tabs != nullptr && tabs->tabText(6) == QStringLiteral("Output"), "Output is the final ribbon tab");
+    passed &= expect(tabs != nullptr && tabs->tabText(6) == QStringLiteral("Output"), "Output tab exists");
+    passed &= expect(tabs != nullptr && tabs->tabText(10) == QStringLiteral("Featured Apps"), "Featured Apps is the final ribbon tab");
 
     for (const auto* groupName : {
         "Draw", "Modify", "Annotation", "Layers", "Block",
@@ -79,16 +95,42 @@ int main(int argc, char* argv[]) {
     }
 
     for (const auto* toolName : {
-        "moveToolButton", "copyToolButton", "rotateToolButton",
+        "moveToolButton", "rotateToolButton",
         "mirrorToolButton", "trimToolButton", "filletToolButton",
-        "stretchToolButton"
+        "stretchToolButton", "scaleToolButton", "arrayToolButton"
     }) {
         const auto* button = ribbon.findChild<QToolButton*>(QString::fromLatin1(toolName));
         passed &= expect(button != nullptr, std::string("Placeholder exists: ") + toolName);
         passed &= expect(button != nullptr && !button->isEnabled(), std::string("Placeholder is disabled: ") + toolName);
     }
+    const auto* cadCopy = ribbon.findChild<QToolButton*>(QStringLiteral("copyToolButton"));
+    passed &= expect(cadCopy != nullptr && cadCopy->defaultAction() == &copySelectionAction,
+                     "Modify Copy uses the functional CAD COPY action");
+
+    for (const auto& [toolName, action] : {
+        std::pair{"cutToolButton", &cutAction},
+        std::pair{"clipboardCopyToolButton", &copyAction},
+        std::pair{"pasteToolButton", &pasteAction}
+    }) {
+        const auto* button = ribbon.findChild<QToolButton*>(QString::fromLatin1(toolName));
+        passed &= expect(button != nullptr && button->defaultAction() == action,
+                         std::string("Clipboard tool uses its action: ") + toolName);
+    }
 
     passed &= expect(ribbon.layerSelector() != nullptr, "Layer selector exists");
+    passed &= expect(ribbon.findChild<QLineEdit*>(QStringLiteral("ribbonSearch")) != nullptr,
+                     "Header command search exists");
+    const auto* documentTabs = ribbon.findChild<QTabBar*>(QStringLiteral("documentTabBar"));
+    passed &= expect(documentTabs != nullptr && documentTabs->count() == 2,
+                     "Start and drawing document tabs exist");
+    passed &= expect(documentTabs != nullptr && documentTabs->currentIndex() == 1,
+                     "Drawing tab is active");
+    const auto* pages = ribbon.findChild<QStackedWidget*>(QStringLiteral("ribbonPages"));
+    if (tabs && pages) {
+        tabs->setCurrentIndex(8);
+        passed &= expect(pages->currentIndex() == 8,
+                         "Non-Home ribbon tabs switch to structured pages");
+    }
     for (const auto* selectorName : {
         "colorSelector", "linetypeSelector", "lineweightSelector"
     }) {

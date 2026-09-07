@@ -49,6 +49,10 @@ private:
     QComboBox* layerSelector_{nullptr};
     QAction* undoAction_{nullptr};
     QAction* redoAction_{nullptr};
+    QAction* copySelectionAction_{nullptr};
+    QAction* cutAction_{nullptr};
+    QAction* copyAction_{nullptr};
+    QAction* pasteAction_{nullptr};
     QLabel* objectIdValue_{nullptr};
     QLabel* entityTypeValue_{nullptr};
     QLabel* layerValue_{nullptr};

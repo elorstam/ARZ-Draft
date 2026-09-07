@@ -62,7 +62,7 @@ bool ownsTextEditing(QWidget* focus) {
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent) {
-    setWindowTitle(QStringLiteral("ARZ Studio CAD — CAD Interaction Foundation"));
+    setWindowTitle(QStringLiteral("Drawing1.dwg - ARZ Studio CAD"));
     resize(1440, 900);
     setDockOptions(QMainWindow::AnimatedDocks | QMainWindow::AllowNestedDocks);
     setStyleSheet(QStringLiteral(
@@ -105,6 +105,24 @@ void MainWindow::buildRibbonHeader() {
     connect(arcAction, &QAction::triggered, this, [this] {
         controller_.startArc(); canvas_->setFocus(); canvas_->update(); refreshUi();
     });
+    copySelectionAction_ = new QAction(QStringLiteral("Copy"), this);
+    connect(copySelectionAction_, &QAction::triggered, this, [this] {
+        (void)controller_.startCopySelection();
+        canvas_->setFocus(); canvas_->refreshInteractionPointer(); canvas_->update(); refreshUi();
+    });
+    cutAction_ = new QAction(QStringLiteral("Cut"), this);
+    connect(cutAction_, &QAction::triggered, this, [this] {
+        (void)controller_.cutSelection(); canvas_->update(); refreshUi();
+    });
+    copyAction_ = new QAction(QStringLiteral("Copy"), this);
+    connect(copyAction_, &QAction::triggered, this, [this] {
+        (void)controller_.copySelection(); refreshUi();
+    });
+    pasteAction_ = new QAction(QStringLiteral("Paste"), this);
+    connect(pasteAction_, &QAction::triggered, this, [this] {
+        if (controller_.paste()) canvas_->refreshInteractionPointer();
+        canvas_->setFocus(); canvas_->update(); refreshUi();
+    });
     addAction(lineAction);
     addAction(polylineAction);
     addAction(circleAction);
@@ -113,7 +131,8 @@ void MainWindow::buildRibbonHeader() {
     addAction(redoAction_);
 
     auto* ribbon = new CadRibbonWidget({exitAction, lineAction, polylineAction,
-        circleAction, arcAction, undoAction_, redoAction_});
+        circleAction, arcAction, undoAction_, redoAction_, copySelectionAction_,
+        cutAction_, copyAction_, pasteAction_});
     setMenuWidget(ribbon);
     layerSelector_ = ribbon->layerSelector();
     auto layerIds = controller_.document().layers().ids();
@@ -250,6 +269,10 @@ void MainWindow::refreshUi() {
     synchronizingCommandInput_ = false;
     undoAction_->setEnabled(controller_.history().canUndo());
     redoAction_->setEnabled(controller_.history().canRedo());
+    copySelectionAction_->setEnabled(!controller_.selection().empty());
+    cutAction_->setEnabled(!controller_.selection().empty());
+    copyAction_->setEnabled(!controller_.selection().empty());
+    pasteAction_->setEnabled(!controller_.clipboard().empty());
     refreshProperties();
     refreshDraftingToggles();
 }

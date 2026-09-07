@@ -1,7 +1,9 @@
 ﻿# PROJECT STATE
 
 ## Current Phase
-Phase 1.2 — Core 2D Drawing Entities
+Phase 1.2 — CLOSED / ACCEPTED WITH KNOWN ISSUES
+
+Current work is a mini top-shell UI refinement only. Phase 1.3 has not started.
 
 ## Completed
 - C++23 / MSVC / CMake toolchain working
@@ -103,6 +105,10 @@ Phase 1.2 — Core 2D Drawing Entities
 - Compact 36-pixel-arm CAD crosshair and centered 8-pixel pickbox rendered as transient cursor overlay
 - Immediate post-P2 ARC reference overlay with safe collinear construction guidance
 - Immediate post-P1 ARC second-point rubber-band reference with shared OSNAP gating
+- Mini top-ribbon/header refinement with original ARZ Studio CAD branding and glyphs
+- Recalibrated 168 px top shell: 27 px header, 25 px tabs, 91 px ribbon, 25 px document tabs
+- Eleven-tab CAD ribbon with dense Home groups and structured non-Home placeholders
+- Tightened 28/16 px icon hierarchy, 9 px ribbon typography, panel padding and control spacing
 
 ## Tests
 Passing:
@@ -121,7 +127,8 @@ Passing:
 - phase_1_2_tests
 
 ## Last Known Status
-Phases 1.0 and 1.0.1 are HUMAN ACCEPTED. Phase 1.2 adds PLINE, CIRCLE and
+Phases 1.0 and 1.0.1 are HUMAN ACCEPTED. Phase 1.2 is CLOSED / ACCEPTED WITH
+KNOWN ISSUES and adds PLINE, CIRCLE and
 three-point ARC across the command, transaction, rendering, selection, snapping,
 properties and clipboard boundaries, including transient PLINE self-snapping,
 mathematical ARC reference preview, interactive COPY, crosshair/pickbox, and context-sensitive canvas menus. The complete Debug
@@ -138,7 +145,7 @@ ownership to the initial index implementation and allows later
 automatic synchronization without changing selection query APIs.
 
 ## Next Phase
-Human acceptance of Phase 1.2, then the next approved Phase 1.x milestone.
+The next approved Phase 1.x milestone. Phase 1.3 has not started.
 
 Goals:
 - expand manual drawing and editing commands
@@ -152,11 +159,9 @@ Do not bypass command/transaction architecture.
 
 ## Phase 1.2 Acceptance Status
 
-AUTOMATED COMPLETE after the phase commit is pushed. HUMAN ACCEPTED remains
-pending until the user verifies PLINE self-snapping and open/close interaction,
-CIRCLE center/radius interaction, three-point ARC direction and reference preview,
-idle/selection context menus, new snap markers, refined selection, entity properties,
-mixed copy/paste, undo/redo redraw, and absence of obvious rendering regressions.
+CLOSED / ACCEPTED WITH KNOWN ISSUES. The current mini UI pass refines only the
+top header, ribbon, and drawing-tab shell; it does not reopen Phase 1.2 scope or
+start Phase 1.3.
 
 ## Locked UI Direction
 

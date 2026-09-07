@@ -147,7 +147,7 @@ this phase has been manually accepted.
 
 ## 1.2 Core 2D Drawing Entities
 
-AUTOMATED COMPLETE — HUMAN ACCEPTANCE PENDING
+CLOSED — ACCEPTED WITH KNOWN ISSUES
 
 - PLINE with open finish and Close option
 - CIRCLE by center and radius point
@@ -164,7 +164,18 @@ AUTOMATED COMPLETE — HUMAN ACCEPTANCE PENDING
 - mixed-entity copy/paste through one undoable transaction
 - complete command undo/redo and regression coverage
 
-Phase 1.3 must not begin until Phase 1.2 is human accepted.
+### Mini UI Refinement — Top Ribbon/Header Replica Pass
+
+COMPLETE after verification and push. This focused shell pass:
+
+- preserves original ARZ Studio CAD branding and in-project vector glyphs
+- recalibrates header, ribbon tab, content, and drawing-tab proportions
+- tightens icon scale, typography, padding, panel widths, and control spacing
+- exposes eleven professional CAD ribbon tabs with a fully composed Home row
+- provides structured disabled pages for later-phase tabs without starting Phase 1.3
+- wires current Draw, undo/redo, CAD COPY, and clipboard actions through existing APIs
+
+Phase 1.3 has not started.
 
 ---
 
@@ -172,7 +183,7 @@ Phase 1.3 must not begin until Phase 1.2 is human accepted.
 
 NEXT
 
-Planned after Phase 1.2 acceptance:
+Planned for a future approved manual CAD phase:
 - MOVE
 - COPY
 - ROTATE

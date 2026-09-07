@@ -12,6 +12,7 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMenu>
 #include <QPainter>
 #include <QPixmap>
@@ -194,7 +195,8 @@ QToolButton* placeholderButton(
     button->setObjectName(objectName);
     button->setText(text);
     button->setIcon(cadIcon(glyph));
-    button->setIconSize(large ? QSize(34, 34) : QSize(20, 20));
+    button->setIconSize(large ? QSize(RibbonMetrics::LargeIcon, RibbonMetrics::LargeIcon)
+                              : QSize(RibbonMetrics::SmallIcon, RibbonMetrics::SmallIcon));
     button->setToolButtonStyle(
         large ? Qt::ToolButtonTextUnderIcon : Qt::ToolButtonTextBesideIcon
     );
@@ -207,14 +209,17 @@ QToolButton* placeholderButton(
 QToolButton* actionButton(
     QAction* action,
     const QString& objectName,
-    bool large = false
+    bool large = false,
+    bool showText = false
 ) {
     auto* button = new QToolButton;
     button->setObjectName(objectName);
     button->setDefaultAction(action);
-    button->setIconSize(large ? QSize(34, 34) : QSize(18, 18));
+    button->setIconSize(large ? QSize(RibbonMetrics::LargeIcon, RibbonMetrics::LargeIcon)
+                              : QSize(RibbonMetrics::SmallIcon, RibbonMetrics::SmallIcon));
     button->setToolButtonStyle(
-        large ? Qt::ToolButtonTextUnderIcon : Qt::ToolButtonIconOnly
+        large ? Qt::ToolButtonTextUnderIcon
+              : (showText ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly)
     );
     button->setProperty("ribbonTool", true);
     button->setProperty("largeTool", large);
@@ -232,8 +237,9 @@ QFrame* ribbonGroup(
     group->setMinimumWidth(minimumWidth);
 
     auto* layout = new QVBoxLayout(group);
-    layout->setContentsMargins(6, 4, 6, 0);
-    layout->setSpacing(1);
+    layout->setContentsMargins(RibbonMetrics::GroupHorizontalPadding, 2,
+                               RibbonMetrics::GroupHorizontalPadding, 0);
+    layout->setSpacing(RibbonMetrics::GroupSpacing);
     layout->addWidget(content, 1);
 
     auto* caption = new QLabel(title);
@@ -247,7 +253,7 @@ QWidget* verticalTools(std::initializer_list<QToolButton*> buttons) {
     auto* widget = new QWidget;
     auto* layout = new QVBoxLayout(widget);
     layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(1);
+    layout->setSpacing(RibbonMetrics::GroupSpacing);
     for (auto* button : buttons) {
         layout->addWidget(button);
     }
@@ -263,8 +269,8 @@ QComboBox* propertyCombo(
     combo->setObjectName(objectName);
     combo->addItem(text);
     combo->setEnabled(false);
-    combo->setMinimumWidth(142);
-    combo->setMaximumHeight(25);
+    combo->setMinimumWidth(126);
+    combo->setMaximumHeight(20);
     return combo;
 }
 
@@ -276,7 +282,7 @@ CadRibbonWidget::CadRibbonWidget(
 )
     : QWidget(parent) {
     setObjectName(QStringLiteral("cadRibbon"));
-    setFixedHeight(187);
+    setFixedHeight(RibbonMetrics::TotalHeight);
 
     actions.lineAction->setIcon(cadIcon(ToolGlyph::Line));
     actions.polylineAction->setIcon(cadIcon(ToolGlyph::Polyline));
@@ -284,6 +290,10 @@ CadRibbonWidget::CadRibbonWidget(
     actions.arcAction->setIcon(cadIcon(ToolGlyph::Arc));
     actions.undoAction->setIcon(style()->standardIcon(QStyle::SP_ArrowBack));
     actions.redoAction->setIcon(style()->standardIcon(QStyle::SP_ArrowForward));
+    actions.copySelectionAction->setIcon(cadIcon(ToolGlyph::Copy));
+    actions.cutAction->setIcon(cadIcon(ToolGlyph::Trim));
+    actions.copyAction->setIcon(cadIcon(ToolGlyph::Copy));
+    actions.pasteAction->setIcon(cadIcon(ToolGlyph::Clipboard));
 
     auto* rootLayout = new QVBoxLayout(this);
     rootLayout->setContentsMargins(0, 0, 0, 0);
@@ -291,10 +301,10 @@ CadRibbonWidget::CadRibbonWidget(
 
     auto* titleBar = new QFrame;
     titleBar->setObjectName(QStringLiteral("ribbonTitleBar"));
-    titleBar->setFixedHeight(34);
+    titleBar->setFixedHeight(RibbonMetrics::HeaderHeight);
     auto* titleLayout = new QHBoxLayout(titleBar);
-    titleLayout->setContentsMargins(8, 2, 10, 2);
-    titleLayout->setSpacing(4);
+    titleLayout->setContentsMargins(5, 1, 7, 1);
+    titleLayout->setSpacing(2);
 
     auto* applicationButton = new QToolButton;
     applicationButton->setObjectName(QStringLiteral("applicationMenuButton"));
@@ -355,15 +365,36 @@ CadRibbonWidget::CadRibbonWidget(
         QStringLiteral("quickRedoButton")
     ));
 
+    addQuickButton(QStringLiteral("quickSaveAsButton"),
+        style()->standardIcon(QStyle::SP_DriveFDIcon), QStringLiteral("Save As"), false);
+    addQuickButton(QStringLiteral("quickPlotButton"),
+        style()->standardIcon(QStyle::SP_FileDialogDetailedView), QStringLiteral("Plot / Print"), false);
+
     auto* productTitle = new QLabel(QStringLiteral("ARZ STUDIO CAD"));
     productTitle->setObjectName(QStringLiteral("productTitle"));
     titleLayout->addWidget(productTitle);
     titleLayout->addStretch(1);
 
-    auto* drawingTitle = new QLabel(QStringLiteral("Drawing 1  |  2D Drafting Workspace"));
+    auto* drawingTitle = new QLabel(QStringLiteral("Drawing1.dwg  —  ARZ Studio CAD"));
     drawingTitle->setObjectName(QStringLiteral("drawingTitle"));
     titleLayout->addWidget(drawingTitle);
     titleLayout->addStretch(1);
+
+    auto* search = new QLineEdit;
+    search->setObjectName(QStringLiteral("ribbonSearch"));
+    search->setPlaceholderText(QStringLiteral("Search commands"));
+    search->setFixedSize(168, 20);
+    titleLayout->addWidget(search);
+
+    auto utilityButton = [titleLayout](const QString& text, const QString& name, const QString& tip) {
+        auto* button = new QToolButton;
+        button->setObjectName(name); button->setText(text); button->setToolTip(tip);
+        button->setAutoRaise(true); button->setEnabled(false); button->setFixedSize(23, 20);
+        titleLayout->addWidget(button);
+    };
+    utilityButton(QStringLiteral("?"), QStringLiteral("helpButton"), QStringLiteral("Help"));
+    utilityButton(QStringLiteral("i"), QStringLiteral("infoButton"), QStringLiteral("Information"));
+    utilityButton(QStringLiteral("●"), QStringLiteral("accountButton"), QStringLiteral("Account"));
 
     auto* workspaceLabel = new QLabel(QStringLiteral("Drafting & Annotation"));
     workspaceLabel->setObjectName(QStringLiteral("workspaceLabel"));
@@ -374,7 +405,7 @@ CadRibbonWidget::CadRibbonWidget(
     tabs->setObjectName(QStringLiteral("ribbonTabBar"));
     tabs->setDrawBase(false);
     tabs->setExpanding(false);
-    tabs->setFixedHeight(29);
+    tabs->setFixedHeight(RibbonMetrics::TabHeight);
     const std::array tabNames{
         QStringLiteral("Home"),
         QStringLiteral("Insert"),
@@ -382,7 +413,11 @@ CadRibbonWidget::CadRibbonWidget(
         QStringLiteral("Parametric"),
         QStringLiteral("View"),
         QStringLiteral("Manage"),
-        QStringLiteral("Output")
+        QStringLiteral("Output"),
+        QStringLiteral("Add-ins"),
+        QStringLiteral("Collaborate"),
+        QStringLiteral("Express Tools"),
+        QStringLiteral("Featured Apps")
     };
     for (const auto& tabName : tabNames) {
         tabs->addTab(tabName);
@@ -391,12 +426,13 @@ CadRibbonWidget::CadRibbonWidget(
 
     auto* pages = new QStackedWidget;
     pages->setObjectName(QStringLiteral("ribbonPages"));
+    pages->setFixedHeight(RibbonMetrics::ContentHeight);
 
     auto* homePage = new QWidget;
     homePage->setObjectName(QStringLiteral("homeRibbonPage"));
-    homePage->setMinimumWidth(1370);
+    homePage->setMinimumWidth(1280);
     auto* homeLayout = new QHBoxLayout(homePage);
-    homeLayout->setContentsMargins(4, 2, 4, 2);
+    homeLayout->setContentsMargins(2, 1, 2, 1);
     homeLayout->setSpacing(0);
 
     auto* drawContent = new QWidget;
@@ -409,11 +445,11 @@ CadRibbonWidget::CadRibbonWidget(
         true
     ));
     drawLayout->addWidget(verticalTools({
-        actionButton(actions.polylineAction, QStringLiteral("polylineToolButton")),
-        actionButton(actions.circleAction, QStringLiteral("circleToolButton")),
-        actionButton(actions.arcAction, QStringLiteral("arcToolButton"))
+        actionButton(actions.polylineAction, QStringLiteral("polylineToolButton"), false, true),
+        actionButton(actions.circleAction, QStringLiteral("circleToolButton"), false, true),
+        actionButton(actions.arcAction, QStringLiteral("arcToolButton"), false, true)
     }));
-    homeLayout->addWidget(ribbonGroup(QStringLiteral("Draw"), drawContent, 186));
+    homeLayout->addWidget(ribbonGroup(QStringLiteral("Draw"), drawContent, 150));
 
     auto* modifyContent = new QWidget;
     auto* modifyLayout = new QGridLayout(modifyContent);
@@ -422,9 +458,10 @@ CadRibbonWidget::CadRibbonWidget(
     modifyLayout->setVerticalSpacing(1);
     const std::array modifyTools{
         std::tuple{QStringLiteral("Move"), ToolGlyph::Move, QStringLiteral("moveToolButton")},
-        std::tuple{QStringLiteral("Copy"), ToolGlyph::Copy, QStringLiteral("copyToolButton")},
         std::tuple{QStringLiteral("Rotate"), ToolGlyph::Rotate, QStringLiteral("rotateToolButton")},
         std::tuple{QStringLiteral("Mirror"), ToolGlyph::Mirror, QStringLiteral("mirrorToolButton")},
+        std::tuple{QStringLiteral("Scale"), ToolGlyph::Stretch, QStringLiteral("scaleToolButton")},
+        std::tuple{QStringLiteral("Array"), ToolGlyph::Group, QStringLiteral("arrayToolButton")},
         std::tuple{QStringLiteral("Trim"), ToolGlyph::Trim, QStringLiteral("trimToolButton")},
         std::tuple{QStringLiteral("Fillet"), ToolGlyph::Fillet, QStringLiteral("filletToolButton")},
         std::tuple{QStringLiteral("Stretch"), ToolGlyph::Stretch, QStringLiteral("stretchToolButton")}
@@ -437,7 +474,9 @@ CadRibbonWidget::CadRibbonWidget(
             static_cast<int>(index / 3)
         );
     }
-    homeLayout->addWidget(ribbonGroup(QStringLiteral("Modify"), modifyContent, 222));
+    modifyLayout->addWidget(actionButton(actions.copySelectionAction,
+        QStringLiteral("copyToolButton"), false, true), 2, 2);
+    homeLayout->addWidget(ribbonGroup(QStringLiteral("Modify"), modifyContent, 210));
 
     auto* annotationContent = new QWidget;
     auto* annotationLayout = new QHBoxLayout(annotationContent);
@@ -448,9 +487,11 @@ CadRibbonWidget::CadRibbonWidget(
         QStringLiteral("textToolButton"), true
     ));
     annotationLayout->addWidget(verticalTools({
-        placeholderButton(QStringLiteral("Dimension"), ToolGlyph::Dimension, QStringLiteral("dimensionToolButton"))
+        placeholderButton(QStringLiteral("Dimension"), ToolGlyph::Dimension, QStringLiteral("dimensionToolButton")),
+        placeholderButton(QStringLiteral("Leader"), ToolGlyph::Dimension, QStringLiteral("leaderToolButton")),
+        placeholderButton(QStringLiteral("Table"), ToolGlyph::Block, QStringLiteral("tableToolButton"))
     }));
-    homeLayout->addWidget(ribbonGroup(QStringLiteral("Annotation"), annotationContent, 154));
+    homeLayout->addWidget(ribbonGroup(QStringLiteral("Annotation"), annotationContent, 145));
 
     auto* layersContent = new QWidget;
     auto* layersLayout = new QVBoxLayout(layersContent);
@@ -464,48 +505,60 @@ CadRibbonWidget::CadRibbonWidget(
     layersLayout->addLayout(layerHeader);
     layerSelector_ = new QComboBox;
     layerSelector_->setObjectName(QStringLiteral("layerSelector"));
-    layerSelector_->setMinimumWidth(154);
+    layerSelector_->setMinimumWidth(146);
     layersLayout->addWidget(layerSelector_);
     auto* layerState = new QLabel(QStringLiteral("●  On    ❄  Thaw    ◇  Unlock"));
     layerState->setObjectName(QStringLiteral("layerStateSummary"));
     layersLayout->addWidget(layerState);
     layersLayout->addStretch(1);
-    homeLayout->addWidget(ribbonGroup(QStringLiteral("Layers"), layersContent, 176));
+    homeLayout->addWidget(ribbonGroup(QStringLiteral("Layers"), layersContent, 164));
 
     auto* blockContent = verticalTools({
-        placeholderButton(QStringLiteral("Insert"), ToolGlyph::Block, QStringLiteral("blockToolButton"), true)
+        placeholderButton(QStringLiteral("Insert"), ToolGlyph::Block, QStringLiteral("blockToolButton")),
+        placeholderButton(QStringLiteral("Create"), ToolGlyph::Block, QStringLiteral("createBlockToolButton")),
+        placeholderButton(QStringLiteral("Edit Attr."), ToolGlyph::Block, QStringLiteral("editBlockToolButton"))
     });
-    homeLayout->addWidget(ribbonGroup(QStringLiteral("Block"), blockContent, 72));
+    homeLayout->addWidget(ribbonGroup(QStringLiteral("Block"), blockContent, 100));
 
     auto* propertiesContent = new QWidget;
     auto* propertiesLayout = new QVBoxLayout(propertiesContent);
     propertiesLayout->setContentsMargins(0, 0, 0, 0);
-    propertiesLayout->setSpacing(2);
+    propertiesLayout->setSpacing(1);
+    propertiesLayout->addWidget(placeholderButton(QStringLiteral("Match Properties"),
+        ToolGlyph::Copy, QStringLiteral("matchPropertiesToolButton")));
     propertiesLayout->addWidget(propertyCombo(QStringLiteral("ByLayer Color"), QStringLiteral("colorSelector")));
     propertiesLayout->addWidget(propertyCombo(QStringLiteral("Continuous"), QStringLiteral("linetypeSelector")));
     propertiesLayout->addWidget(propertyCombo(QStringLiteral("Default Weight"), QStringLiteral("lineweightSelector")));
     propertiesLayout->addStretch(1);
-    homeLayout->addWidget(ribbonGroup(QStringLiteral("Properties"), propertiesContent, 158));
+    homeLayout->addWidget(ribbonGroup(QStringLiteral("Properties"), propertiesContent, 148));
 
     homeLayout->addWidget(ribbonGroup(
         QStringLiteral("Groups"),
-        verticalTools({placeholderButton(QStringLiteral("Group"), ToolGlyph::Group, QStringLiteral("groupToolButton"), true)}),
-        72
+        verticalTools({placeholderButton(QStringLiteral("Group"), ToolGlyph::Group, QStringLiteral("groupToolButton")),
+                       placeholderButton(QStringLiteral("Ungroup"), ToolGlyph::Group, QStringLiteral("ungroupToolButton"))}),
+        78
     ));
     homeLayout->addWidget(ribbonGroup(
         QStringLiteral("Utilities"),
         verticalTools({placeholderButton(QStringLiteral("Measure"), ToolGlyph::Measure, QStringLiteral("measureToolButton"), true)}),
-        78
+        70
     ));
-    homeLayout->addWidget(ribbonGroup(
-        QStringLiteral("Clipboard"),
-        verticalTools({placeholderButton(QStringLiteral("Paste"), ToolGlyph::Clipboard, QStringLiteral("pasteToolButton"), true)}),
-        76
-    ));
+    auto* clipboardContent = new QWidget;
+    auto* clipboardLayout = new QHBoxLayout(clipboardContent);
+    clipboardLayout->setContentsMargins(0, 0, 0, 0);
+    clipboardLayout->setSpacing(1);
+    clipboardLayout->addWidget(actionButton(actions.pasteAction, QStringLiteral("pasteToolButton"), true));
+    clipboardLayout->addWidget(verticalTools({
+        actionButton(actions.cutAction, QStringLiteral("cutToolButton"), false, true),
+        actionButton(actions.copyAction, QStringLiteral("clipboardCopyToolButton"), false, true)
+    }));
+    homeLayout->addWidget(ribbonGroup(QStringLiteral("Clipboard"), clipboardContent, 102));
     homeLayout->addWidget(ribbonGroup(
         QStringLiteral("View"),
-        verticalTools({placeholderButton(QStringLiteral("Top"), ToolGlyph::View, QStringLiteral("viewToolButton"), true)}),
-        68
+        verticalTools({placeholderButton(QStringLiteral("Top"), ToolGlyph::View, QStringLiteral("viewToolButton")),
+                       placeholderButton(QStringLiteral("Named View"), ToolGlyph::View, QStringLiteral("namedViewToolButton")),
+                       placeholderButton(QStringLiteral("2D Wireframe"), ToolGlyph::View, QStringLiteral("visualStyleToolButton"))}),
+        96
     ));
     homeLayout->addStretch(1);
 
@@ -519,39 +572,92 @@ CadRibbonWidget::CadRibbonWidget(
     pages->addWidget(homeScroll);
 
     for (std::size_t index = 1; index < tabNames.size(); ++index) {
-        auto* placeholder = new QLabel(
-            QStringLiteral("%1 tools are reserved for a later manual CAD phase.")
-                .arg(tabNames[index])
-        );
-        placeholder->setObjectName(QStringLiteral("ribbonPlaceholderPage"));
-        placeholder->setAlignment(Qt::AlignCenter);
-        pages->addWidget(placeholder);
+        auto* page = new QWidget;
+        page->setObjectName(QStringLiteral("ribbonPlaceholderPage"));
+        auto* pageLayout = new QHBoxLayout(page);
+        pageLayout->setContentsMargins(2, 1, 2, 1);
+        pageLayout->setSpacing(0);
+        pageLayout->addWidget(ribbonGroup(
+            QStringLiteral("%1 Tools").arg(tabNames[index]),
+            verticalTools({placeholderButton(QStringLiteral("Primary Tool"), ToolGlyph::View,
+                                              QStringLiteral("placeholderPrimary%1").arg(index), true)}), 104));
+        pageLayout->addWidget(ribbonGroup(
+            QStringLiteral("Workspace"),
+            verticalTools({placeholderButton(QStringLiteral("Options"), ToolGlyph::Layers,
+                                              QStringLiteral("placeholderOptions%1").arg(index)),
+                           placeholderButton(QStringLiteral("Manager"), ToolGlyph::Block,
+                                              QStringLiteral("placeholderManager%1").arg(index))}), 108));
+        auto* note = new QLabel(QStringLiteral("Structured %1 workspace — available in a later manual CAD phase")
+                                    .arg(tabNames[index]));
+        note->setAlignment(Qt::AlignCenter);
+        note->setProperty("ribbonPlaceholderNote", true);
+        pageLayout->addWidget(note, 1);
+        pages->addWidget(page);
     }
     connect(tabs, &QTabBar::currentChanged, pages, &QStackedWidget::setCurrentIndex);
-    rootLayout->addWidget(pages, 1);
+    rootLayout->addWidget(pages);
+
+    auto* documentStrip = new QFrame;
+    documentStrip->setObjectName(QStringLiteral("documentTabStrip"));
+    documentStrip->setFixedHeight(RibbonMetrics::DocumentTabHeight);
+    auto* documentLayout = new QHBoxLayout(documentStrip);
+    documentLayout->setContentsMargins(5, 0, 5, 0);
+    documentLayout->setSpacing(1);
+    auto* documentTabs = new QTabBar;
+    documentTabs->setObjectName(QStringLiteral("documentTabBar"));
+    documentTabs->setDrawBase(false);
+    documentTabs->setExpanding(false);
+    documentTabs->addTab(QStringLiteral("Start"));
+    documentTabs->addTab(QStringLiteral("Drawing1.dwg"));
+    documentTabs->setCurrentIndex(1);
+    auto* closeDrawing = new QToolButton;
+    closeDrawing->setObjectName(QStringLiteral("closeDrawingTabButton"));
+    closeDrawing->setText(QStringLiteral("×"));
+    closeDrawing->setToolTip(QStringLiteral("Close drawing"));
+    closeDrawing->setEnabled(false);
+    closeDrawing->setFixedSize(16, 16);
+    documentTabs->setTabButton(1, QTabBar::RightSide, closeDrawing);
+    documentLayout->addWidget(documentTabs);
+    auto* newTab = new QToolButton;
+    newTab->setObjectName(QStringLiteral("newDocumentTabButton"));
+    newTab->setText(QStringLiteral("+"));
+    newTab->setToolTip(QStringLiteral("New drawing tab"));
+    newTab->setEnabled(false);
+    newTab->setFixedSize(23, 21);
+    documentLayout->addWidget(newTab);
+    documentLayout->addStretch(1);
+    rootLayout->addWidget(documentStrip);
 
     setStyleSheet(QStringLiteral(
-        "#cadRibbon { background: #252d38; color: #dce5ee; border-bottom: 1px solid #10151b; }"
-        "#ribbonTitleBar { background: #182431; border-bottom: 1px solid #0d141c; }"
-        "#applicationMenuButton { background: #167ea0; color: white; border: 0; border-radius: 3px; font-weight: 700; padding: 4px 11px; }"
+        "#cadRibbon { background: #252d38; color: #dce5ee; border-bottom: 1px solid #10151b; font-family: 'Segoe UI'; font-size: 9px; }"
+        "#ribbonTitleBar { background: #172431; border-bottom: 1px solid #0d141c; }"
+        "#applicationMenuButton { background: #167ea0; color: white; border: 0; border-radius: 2px; font-weight: 700; padding: 2px 8px; max-height: 21px; }"
         "#applicationMenuButton:hover { background: #2499bd; }"
-        "#productTitle { color: #7ed8f5; font-weight: 700; letter-spacing: 1px; padding-left: 5px; }"
-        "#drawingTitle { color: #b9c5d1; font-size: 11px; }"
-        "#workspaceLabel { color: #b8c8d8; background: #233444; border: 1px solid #3d5266; border-radius: 2px; padding: 3px 9px; }"
+        "#productTitle { color: #7ed8f5; font-weight: 700; letter-spacing: 1px; padding-left: 3px; }"
+        "#drawingTitle { color: #c4ced8; font-size: 10px; }"
+        "#workspaceLabel { color: #b8c8d8; background: #233444; border: 1px solid #3d5266; border-radius: 2px; padding: 1px 6px; }"
+        "#ribbonSearch { color: #dce5ee; background: #111a23; border: 1px solid #405267; border-radius: 2px; padding: 1px 6px; font-size: 9px; }"
+        "#helpButton, #infoButton, #accountButton { color: #d7e2ec; border: 1px solid transparent; padding: 0; font-weight: 600; }"
         "#ribbonTabBar { background: #202a35; }"
-        "#ribbonTabBar::tab { background: transparent; color: #c7d0da; min-width: 74px; padding: 6px 12px 5px 12px; border: 0; }"
+        "#ribbonTabBar::tab { background: transparent; color: #c7d0da; min-width: 58px; padding: 4px 8px 3px 8px; border: 0; font-size: 9px; }"
         "#ribbonTabBar::tab:hover { background: #2d3b49; color: white; }"
         "#ribbonTabBar::tab:selected { color: white; background: #303b47; border-top: 2px solid #42b7dc; }"
         "#ribbonPages, #homeRibbonPage, #homeRibbonScroll, #ribbonPlaceholderPage { background: #303945; color: #aebdcb; border: 0; }"
         "QFrame[ribbonGroup=\"true\"] { background: #303945; border: 0; border-right: 1px solid #56616e; }"
-        "QLabel[ribbonGroupTitle=\"true\"] { color: #9eabb8; font-size: 10px; padding: 1px 2px 2px 2px; }"
-        "QToolButton[ribbonTool=\"true\"] { color: #e1e7ed; background: transparent; border: 1px solid transparent; border-radius: 2px; padding: 2px 4px; min-height: 20px; }"
+        "QLabel[ribbonGroupTitle=\"true\"] { color: #aab5c0; font-size: 9px; padding: 0 2px 1px 2px; }"
+        "QLabel[ribbonPlaceholderNote=\"true\"] { color: #81909f; font-size: 10px; }"
+        "QToolButton[ribbonTool=\"true\"] { color: #e1e7ed; background: transparent; border: 1px solid transparent; border-radius: 1px; padding: 1px 3px; min-height: 17px; font-size: 9px; }"
         "QToolButton[ribbonTool=\"true\"]:hover { background: #425262; border-color: #65788a; }"
         "QToolButton[ribbonTool=\"true\"]:pressed { background: #176f8c; }"
         "QToolButton[ribbonTool=\"true\"]:disabled { color: #8f9aa5; }"
-        "QToolButton[largeTool=\"true\"] { min-width: 54px; min-height: 68px; }"
-        "QComboBox { color: #dce5ee; background: #1e2832; border: 1px solid #566676; border-radius: 2px; padding: 3px 6px; }"
+        "QToolButton[largeTool=\"true\"] { min-width: 44px; min-height: 55px; }"
+        "QComboBox { color: #dce5ee; background: #1e2832; border: 1px solid #566676; border-radius: 1px; padding: 1px 4px; font-size: 9px; }"
         "QComboBox:disabled { color: #a7b1ba; background: #252e38; }"
+        "#documentTabStrip { background: #1b232d; border-top: 1px solid #10161d; border-bottom: 1px solid #111820; }"
+        "#documentTabBar::tab { background: #27313c; color: #b9c4ce; min-width: 90px; padding: 3px 12px; border: 0; border-right: 1px solid #111820; font-size: 9px; }"
+        "#documentTabBar::tab:selected { background: #3a4652; color: white; border-top: 2px solid #47bce0; }"
+        "#newDocumentTabButton { color: #b9c4ce; background: transparent; border: 1px solid transparent; font-size: 15px; padding: 0; }"
+        "#closeDrawingTabButton { color: #aeb9c4; background: transparent; border: 0; font-size: 12px; padding: 0; }"
         "QMenu { background: #252f3a; color: #e1e7ed; border: 1px solid #526170; }"
         "QMenu::item { padding: 6px 26px; }"
         "QMenu::item:selected { background: #167e9f; }"

@@ -102,6 +102,7 @@ Phase 1.2 — Core 2D Drawing Entities
 - Distinct continuous COPY/CO workflow with a fixed base point and immutable source, separate from Ctrl+C clipboard copy
 - Compact 36-pixel-arm CAD crosshair and centered 8-pixel pickbox rendered as transient cursor overlay
 - Immediate post-P2 ARC reference overlay with safe collinear construction guidance
+- Immediate post-P1 ARC second-point rubber-band reference with shared OSNAP gating
 
 ## Tests
 Passing:

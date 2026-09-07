@@ -159,6 +159,7 @@ AUTOMATED COMPLETE — HUMAN ACCEPTANCE PENDING
 - continuous multi-destination COPY/CO placement distinct from clipboard Copy, with fixed base-point snapping
 - compact professional transient crosshair and centered pickbox cursor overlay
 - immediate post-P2 ARC construction/reference state independent of valid arc geometry
+- immediate post-P1 ARC second-point rubber band through the shared snap pipeline
 - rendering, selection, snapping and read-only properties for each entity
 - mixed-entity copy/paste through one undoable transaction
 - complete command undo/redo and regression coverage

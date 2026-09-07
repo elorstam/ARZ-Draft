@@ -85,13 +85,18 @@ void QtOverlayRenderer::render(
     }
     if (const auto& reference = overlays.arcReference()) {
         painter.setPen(QPen(QColor(150, 205, 230, 190), 1.0, Qt::DashLine));
-        painter.drawLine(screenPoint(context, reference->startPoint),
-                         screenPoint(context, reference->secondPoint));
-        painter.drawLine(screenPoint(context, reference->secondPoint),
-                         screenPoint(context, reference->provisionalEndPoint));
-        painter.setPen(QPen(QColor(150, 205, 230, 135), 1.0, Qt::DotLine));
-        painter.drawLine(screenPoint(context, reference->startPoint),
-                         screenPoint(context, reference->provisionalEndPoint));
+        if (reference->stage == arz::interaction::ArcReferenceStage::SecondPoint) {
+            painter.drawLine(screenPoint(context, reference->startPoint),
+                             screenPoint(context, reference->secondPoint));
+        } else {
+            painter.drawLine(screenPoint(context, reference->startPoint),
+                             screenPoint(context, reference->secondPoint));
+            painter.drawLine(screenPoint(context, reference->secondPoint),
+                             screenPoint(context, reference->provisionalEndPoint));
+            painter.setPen(QPen(QColor(150, 205, 230, 135), 1.0, Qt::DotLine));
+            painter.drawLine(screenPoint(context, reference->startPoint),
+                             screenPoint(context, reference->provisionalEndPoint));
+        }
     }
     if (const auto& arc = overlays.drawingArc()) {
         const auto center = screenPoint(context, arc->center);

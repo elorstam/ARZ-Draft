@@ -40,7 +40,10 @@ struct TransientArc final {
     arz::geometry::Point2D endPoint{};
 };
 
+enum class ArcReferenceStage { SecondPoint = 0, ThirdPoint };
+
 struct ArcReferenceOverlay final {
+    ArcReferenceStage stage{ArcReferenceStage::SecondPoint};
     arz::geometry::Point2D startPoint{};
     arz::geometry::Point2D secondPoint{};
     arz::geometry::Point2D provisionalEndPoint{};

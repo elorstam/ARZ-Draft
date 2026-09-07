@@ -182,8 +182,13 @@ void CadApplicationController::updatePointer(arz::geometry::Point2D worldPoint,
         overlayState_.setDrawingCircle({*circleInput_.center(),
             arz::geometry::distance(*circleInput_.center(), worldPoint)});
     }
+    if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingSecond) {
+        overlayState_.setArcReference({arz::interaction::ArcReferenceStage::SecondPoint,
+                                       *arcInput_.start(), worldPoint, worldPoint});
+    }
     if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingThirdPoint) {
-        overlayState_.setArcReference({*arcInput_.start(), *arcInput_.second(), worldPoint});
+        overlayState_.setArcReference({arz::interaction::ArcReferenceStage::ThirdPoint,
+                                       *arcInput_.start(), *arcInput_.second(), worldPoint});
         if (const auto arc = arcInput_.preview(worldPoint)) {
             overlayState_.setDrawingArc({arc->center, arc->radius, arc->startAngle,
                 arz::geometry::directedAngleSweep(arc->startAngle, arc->endAngle,
@@ -317,8 +322,12 @@ CanvasAction CadApplicationController::canvasClick(arz::geometry::Point2D worldP
         if (const auto snap = snapCandidate(worldPoint, worldTolerance)) worldPoint = snap->point;
         const auto arc = arcInput_.acceptPoint(worldPoint);
         if (!arc) {
-            if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingThirdPoint)
-                overlayState_.setArcReference({*arcInput_.start(), *arcInput_.second(), worldPoint});
+            if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingSecond)
+                overlayState_.setArcReference({arz::interaction::ArcReferenceStage::SecondPoint,
+                                               *arcInput_.start(), worldPoint, worldPoint});
+            else if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingThirdPoint)
+                overlayState_.setArcReference({arz::interaction::ArcReferenceStage::ThirdPoint,
+                                               *arcInput_.start(), *arcInput_.second(), worldPoint});
             updateOverlayText();
             return CanvasAction::FirstLinePointAccepted;
         }

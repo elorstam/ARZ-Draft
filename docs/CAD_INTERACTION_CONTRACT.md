@@ -198,9 +198,11 @@ pickbox as a transient overlay while hiding the native arrow cursor. Its configu
 defaults use 36-pixel arms and an 8-pixel pickbox rather than viewport-spanning lines. Snap markers
 remain visually distinct from the pickbox and dynamic input is cursor-relative.
 
-After ARC P2, overlay state immediately stores the fixed P1/P2 points and provisional
-P3. Safe construction lines render even when those points are collinear; the optional
-arc, radius, and sweep values appear only when the provisional circumcircle is valid.
+After ARC P1, overlay state immediately enters its second-point reference stage and
+renders a snapped/raw P1-to-provisional-P2 rubber band on every pointer update. After
+P2, it switches directly to the third-point reference stage with fixed P1/P2 and
+provisional P3. Safe construction lines render even when those points are collinear;
+the optional arc, radius, and sweep values appear only when the circumcircle is valid.
 
 Window selection is blue and solid; crossing selection is green and dashed.
 Middle-button drag pans, wheel input zooms about the cursor, and middle-button

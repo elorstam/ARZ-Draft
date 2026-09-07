@@ -216,6 +216,51 @@ bool testArcThreePointPreviewAndSafeInvalidState() {
         && controller.document().objectIds().size() == 1;
 }
 
+bool testArcSecondPointReferenceAndSnapping() {
+    arz::app::CadApplicationController controller;
+    controller.startLine();
+    (void)controller.canvasClick({100, 100}, 0.01);
+    (void)controller.canvasClick({120, 100}, 0.01);
+    const auto baselineObjects = controller.document().objectIds().size();
+    controller.startArc();
+    (void)controller.canvasClick({0, 0}, 0.01);
+    if (controller.arcInputState() != arz::interaction::ArcInputState::AwaitingSecond
+        || !controller.overlayState().arcReference()
+        || controller.overlayState().arcReference()->stage
+            != arz::interaction::ArcReferenceStage::SecondPoint) return false;
+
+    controller.updatePointer({100.3, 100.2}, 1.0);
+    auto reference = controller.overlayState().arcReference();
+    if (!reference || reference->startPoint != arz::geometry::Point2D{0, 0}
+        || reference->secondPoint != arz::geometry::Point2D{100, 100}) return false;
+    controller.updatePointer({110, 80}, 0.01);
+    reference = controller.overlayState().arcReference();
+    if (!reference || reference->secondPoint != arz::geometry::Point2D{110, 80}) return false;
+
+    (void)controller.toggleDrafting(arz::interaction::DraftingToggle::ObjectSnap);
+    controller.updatePointer({100.3, 100.2}, 1.0);
+    reference = controller.overlayState().arcReference();
+    if (!reference || reference->secondPoint != arz::geometry::Point2D{100.3, 100.2}) return false;
+    for (int i = 0; i < 300; ++i)
+        controller.updatePointer({20.0 + i * 0.1, 30.0 + i * 0.05}, 0.01);
+    if (controller.document().objectIds().size() != baselineObjects) return false;
+
+    (void)controller.canvasClick({10, 10}, 0.01);
+    if (controller.arcInputState() != arz::interaction::ArcInputState::AwaitingThirdPoint
+        || !controller.overlayState().arcReference()
+        || controller.overlayState().arcReference()->stage
+            != arz::interaction::ArcReferenceStage::ThirdPoint) return false;
+    if (!controller.escape()
+        || controller.arcInputState() != arz::interaction::ArcInputState::Inactive
+        || controller.document().objectIds().size() != baselineObjects) return false;
+
+    arz::app::CadApplicationController emptyController;
+    emptyController.startArc();
+    (void)emptyController.canvasClick({5, 5}, 0.01);
+    emptyController.updatePointer({15, 10}, 0.01);
+    return emptyController.escape() && emptyController.document().objectIds().empty();
+}
+
 bool testInteractiveCopySelection() {
     arz::app::CadApplicationController controller;
     controller.startLine();
@@ -316,6 +361,7 @@ int main() {
     run("InteractiveCommandsPreviewsAndClipboard", testInteractiveCommandsPreviewsAndClipboard());
     run("TransientPolylineSnapping", testTransientPolylineSnapping());
     run("ArcThreePointPreviewAndSafeInvalidState", testArcThreePointPreviewAndSafeInvalidState());
+    run("ArcSecondPointReferenceAndSnapping", testArcSecondPointReferenceAndSnapping());
     run("InteractiveCopySelection", testInteractiveCopySelection());
     run("AliasesParserAndRenderAdapters", testAliasesParserAndRenderAdapters());
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

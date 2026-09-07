@@ -153,6 +153,9 @@ AUTOMATED COMPLETE — HUMAN ACCEPTANCE PENDING
 - CIRCLE by center and radius point
 - ARC through three points
 - command aliases, autocomplete, prompts and transient previews
+- active-command transient PLINE vertex/midpoint snapping through shared ranking
+- three-state ARC reference preview with dynamic radius and sweep information
+- context-sensitive idle/selection right-click menu with active-command preservation
 - rendering, selection, snapping and read-only properties for each entity
 - mixed-entity copy/paste through one undoable transaction
 - complete command undo/redo and regression coverage

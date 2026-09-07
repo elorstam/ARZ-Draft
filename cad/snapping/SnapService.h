@@ -29,10 +29,24 @@ public:
         std::span<const SnapType> enabledTypes
     ) const;
 
+    [[nodiscard]] std::vector<SnapResult> candidates(
+        arz::geometry::Point2D queryPoint,
+        double tolerance,
+        std::span<const SnapType> enabledTypes,
+        std::span<const SnapPoint> transientPoints
+    ) const;
+
     [[nodiscard]] std::optional<SnapResult> bestSnap(
         arz::geometry::Point2D queryPoint,
         double tolerance,
         std::span<const SnapType> enabledTypes
+    ) const;
+
+    [[nodiscard]] std::optional<SnapResult> bestSnap(
+        arz::geometry::Point2D queryPoint,
+        double tolerance,
+        std::span<const SnapType> enabledTypes,
+        std::span<const SnapPoint> transientPoints
     ) const;
 
 private:

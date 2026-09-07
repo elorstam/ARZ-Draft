@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QMainWindow>
+#include <QPointF>
 
 #include "app/application/CadApplicationController.h"
 
@@ -38,6 +39,7 @@ private:
     void refreshUi();
     void refreshProperties();
     void updateCoordinates(arz::geometry::Point2D point);
+    void showCanvasContextMenu(QPointF position);
 
     CadApplicationController controller_;
     arz::views::CadCanvasWidget* canvas_{nullptr};

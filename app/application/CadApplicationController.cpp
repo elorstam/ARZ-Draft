@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cmath>
 #include <memory>
+#include <numbers>
 #include <utility>
 #include <vector>
 
@@ -105,16 +106,12 @@ bool CadApplicationController::confirmInput() {
     }
     if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingEnd
         && overlayState_.drawingArc()) {
-        const auto preview = *overlayState_.drawingArc();
-        auto command = std::make_unique<arz::cad::AddArcCommand>(document_, currentLayerId_,
-            preview.center, preview.radius, preview.startAngle,
-            arz::geometry::normalizeAngle(preview.startAngle
-                + (preview.counterClockwise ? preview.sweepAngle : -preview.sweepAngle)),
-            preview.counterClockwise);
-        auto* view = command.get();
-        if (!history_.execute(std::move(command))) return false;
-        arcInput_.cancel(); overlayState_.clearDrawingArc();
-        selection_.replace({view->objectId()}); synchronizeAfterModelChange(); return true;
+        // ARC requires an explicit third point. Enter/Space cancels the pending
+        // provisional state rather than treating the cursor as a confirmed point.
+        arcInput_.cancel();
+        overlayState_.clearDrawingArc();
+        updateOverlayText();
+        return true;
     }
     if (lineInput_.state() != arz::interaction::LineInputState::Inactive) {
         lineInput_.cancel();
@@ -170,7 +167,8 @@ void CadApplicationController::updatePointer(arz::geometry::Point2D worldPoint,
     if (polylineInput_.state() == arz::interaction::PolylineInputState::AwaitingNextPoint) {
         auto vertices = polylineInput_.vertices();
         vertices.push_back(worldPoint);
-        overlayState_.setDrawingPolyline({std::move(vertices), false});
+        const bool closing = polylineInput_.canClose() && worldPoint == vertices.front();
+        overlayState_.setDrawingPolyline({std::move(vertices), closing});
     }
     if (circleInput_.state() == arz::interaction::CircleInputState::AwaitingRadiusPoint) {
         overlayState_.setDrawingCircle({*circleInput_.center(),
@@ -181,7 +179,7 @@ void CadApplicationController::updatePointer(arz::geometry::Point2D worldPoint,
             overlayState_.setDrawingArc({arc->center, arc->radius, arc->startAngle,
                 arz::geometry::directedAngleSweep(arc->startAngle, arc->endAngle,
                                                    arc->counterClockwise),
-                arc->counterClockwise});
+                arc->counterClockwise, *arcInput_.second(), worldPoint});
         } else overlayState_.clearDrawingArc();
     }
     if (!overlayState_.pastePlacement()) return;
@@ -282,6 +280,9 @@ CanvasAction CadApplicationController::canvasClick(arz::geometry::Point2D worldP
     }
     if (polylineInput_.state() != arz::interaction::PolylineInputState::Inactive) {
         if (const auto snap = snapCandidate(worldPoint, worldTolerance)) worldPoint = snap->point;
+        if (polylineInput_.canClose() && worldPoint == polylineInput_.vertices().front()) {
+            return commitPolyline(true) ? CanvasAction::EntityCreated : CanvasAction::None;
+        }
         (void)polylineInput_.acceptPoint(worldPoint);
         overlayState_.setDrawingPolyline({polylineInput_.vertices(), false});
         updateOverlayText();
@@ -365,7 +366,16 @@ std::optional<arz::cad::SnapResult> CadApplicationController::snapCandidate(
     if ((!anyDrawingCommandActive() && !overlayState_.pastePlacement())
         || !draftingSettings_.enabled(arz::interaction::DraftingToggle::ObjectSnap))
         return std::nullopt;
-    return snapService_.bestSnap(worldPoint, worldTolerance, EnabledSnapTypes);
+    std::vector<arz::cad::SnapPoint> transient;
+    if (polylineInput_.state() != arz::interaction::PolylineInputState::Inactive) {
+        const auto& vertices = polylineInput_.vertices();
+        for (const auto point : vertices)
+            transient.push_back({arz::cad::SnapType::Endpoint, point});
+        for (std::size_t i = 1; i < vertices.size(); ++i)
+            transient.push_back({arz::cad::SnapType::Midpoint,
+                arz::geometry::midpoint(vertices[i - 1], vertices[i])});
+    }
+    return snapService_.bestSnap(worldPoint, worldTolerance, EnabledSnapTypes, transient);
 }
 
 bool CadApplicationController::undo() {
@@ -522,6 +532,10 @@ std::string CadApplicationController::commandPrompt() const {
     if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingEnd) return "ARC: Specify end point";
     return "Command:";
 }
+
+bool CadApplicationController::pointAcquisitionActive() const noexcept {
+    return anyDrawingCommandActive();
+}
 bool CadApplicationController::rebuildSpatialIndex() {
     return arz::cad::SpatialIndexSynchronizer::rebuild(document_, spatialIndex_);
 }
@@ -550,6 +564,14 @@ void CadApplicationController::updateOverlayText() {
     else if (circleInput_.state() == arz::interaction::CircleInputState::AwaitingRadiusPoint) overlayState_.setDynamicText("Specify radius point");
     else if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingStart) overlayState_.setDynamicText("Specify start point");
     else if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingSecond) overlayState_.setDynamicText("Specify second point");
+    else if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingEnd
+             && overlayState_.drawingArc()) {
+        const auto& arc = *overlayState_.drawingArc();
+        const double degrees = arc.sweepAngle * 180.0 / std::numbers::pi;
+        overlayState_.setDynamicText("Specify end point | R "
+            + std::to_string(arc.radius) + " mm | sweep "
+            + std::to_string(degrees) + " deg");
+    }
     else if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingEnd) overlayState_.setDynamicText("Specify end point");
     else overlayState_.setDynamicText({});
 }

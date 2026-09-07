@@ -14,6 +14,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPlainTextEdit>
+#include <QMenu>
 #include <QSizePolicy>
 #include <QSpacerItem>
 #include <QStatusBar>
@@ -129,6 +130,7 @@ void MainWindow::buildRibbonHeader() {
 
 void MainWindow::buildPropertiesPanel() {
     auto* dock = new QDockWidget(QStringLiteral("Properties"), this);
+    dock->setObjectName(QStringLiteral("propertiesDock"));
     dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
     dock->setMinimumWidth(245);
     auto* panel = new QWidget;
@@ -192,6 +194,9 @@ void MainWindow::buildCentralWorkspace() {
 
     canvas_->setCoordinatesChangedCallback([this](auto point) { updateCoordinates(point); });
     canvas_->setStateChangedCallback([this] { refreshUi(); });
+    canvas_->setContextMenuCallback([this](QPointF position) {
+        showCanvasContextMenu(position);
+    });
     connect(commandInput_, &QLineEdit::textChanged, this, [this](const QString& text) {
         if (!synchronizingCommandInput_) {
             controller_.setCommandBuffer(text.toStdString());
@@ -332,6 +337,75 @@ void MainWindow::toggleDrafting(arz::interaction::DraftingToggle toggle) {
 void MainWindow::updateCoordinates(arz::geometry::Point2D point) {
     coordinateLabel_->setText(QStringLiteral("X: %1  Y: %2 mm")
         .arg(point.x, 0, 'f', 3).arg(point.y, 0, 'f', 3));
+}
+
+void MainWindow::showCanvasContextMenu(QPointF position) {
+    QMenu menu(this);
+    const auto last = controller_.commandInput().lastRepeatable();
+    auto* repeat = menu.addAction(last
+        ? QStringLiteral("Repeat %1").arg(QString::fromStdString(*last))
+        : QStringLiteral("Repeat <Last Command>"));
+    repeat->setEnabled(last.has_value());
+    if (last) {
+        connect(repeat, &QAction::triggered, this, [this, command = *last] {
+            (void)controller_.invokeCommandText(command);
+            canvas_->update(); refreshUi();
+        });
+    }
+
+    auto* recent = menu.addMenu(QStringLiteral("Recent Input"));
+    const auto& history = controller_.commandInput().history();
+    for (auto it = history.rbegin(); it != history.rend(); ++it) {
+        auto* action = recent->addAction(QString::fromStdString(*it));
+        connect(action, &QAction::triggered, this, [this, command = *it] {
+            (void)controller_.invokeCommandText(command);
+            canvas_->update(); refreshUi();
+        });
+    }
+    if (history.empty()) recent->addAction(QStringLiteral("<None>"))->setEnabled(false);
+
+    auto* clipboard = menu.addMenu(QStringLiteral("Clipboard"));
+    auto* cut = clipboard->addAction(QStringLiteral("Cut"));
+    cut->setEnabled(!controller_.selection().empty());
+    connect(cut, &QAction::triggered, this, [this] {
+        (void)controller_.cutSelection(); canvas_->update(); refreshUi();
+    });
+    auto* copy = clipboard->addAction(QStringLiteral("Copy"));
+    copy->setEnabled(!controller_.selection().empty());
+    connect(copy, &QAction::triggered, this, [this] {
+        (void)controller_.copySelection(); refreshUi();
+    });
+    auto* paste = clipboard->addAction(QStringLiteral("Paste"));
+    paste->setEnabled(!controller_.clipboard().empty());
+    connect(paste, &QAction::triggered, this, [this] {
+        (void)controller_.paste(); canvas_->refreshInteractionPointer();
+        canvas_->update(); refreshUi();
+    });
+
+    menu.addSeparator();
+    if (!controller_.selection().empty()) {
+        auto* erase = menu.addAction(QStringLiteral("Erase"));
+        connect(erase, &QAction::triggered, this, [this] {
+            (void)controller_.deleteSelection(); canvas_->update(); refreshUi();
+        });
+        auto* copySelection = menu.addAction(QStringLiteral("Copy Selection"));
+        connect(copySelection, &QAction::triggered, this, [this] {
+            (void)controller_.copySelection(); refreshUi();
+        });
+        menu.addSeparator();
+        auto* deselect = menu.addAction(QStringLiteral("Deselect All"));
+        connect(deselect, &QAction::triggered, this, [this] {
+            (void)controller_.escape(); canvas_->update(); refreshUi();
+        });
+        menu.addSeparator();
+    }
+    auto* properties = menu.addAction(QStringLiteral("Properties"));
+    connect(properties, &QAction::triggered, this, [this] {
+        if (auto* dock = findChild<QDockWidget*>(QStringLiteral("propertiesDock"))) {
+            dock->show(); dock->raise(); dock->activateWindow();
+        }
+    });
+    menu.exec(canvas_->mapToGlobal(position.toPoint()));
 }
 
 bool MainWindow::eventFilter(QObject* watched, QEvent* event) {

@@ -18,6 +18,7 @@
 #include "cad/snapping/CadEntitySnapProvider.h"
 #include "core/document/Document.h"
 #include "core/transactions/TransactionHistory.h"
+#include "geometry/algorithms/Curve2D.h"
 #include "interaction/commands/CommandLineParser.h"
 #include "interaction/commands/CommandRegistry.h"
 #include "rendering/DocumentRenderPlanner.h"
@@ -143,6 +144,67 @@ bool testInteractiveCommandsPreviewsAndClipboard() {
     return true;
 }
 
+bool testTransientPolylineSnapping() {
+    arz::app::CadApplicationController controller;
+    controller.startPolyline();
+    (void)controller.canvasClick({0, 0}, 0.01);
+    (void)controller.canvasClick({20, 0}, 0.01);
+    (void)controller.canvasClick({20, 20}, 0.01);
+    const auto start = controller.snapCandidate({0.2, 0.1}, 0.5);
+    const auto midpoint = controller.snapCandidate({10.1, -0.1}, 0.5);
+    if (!start || start->objectId != arz::core::InvalidObjectId
+        || start->type != arz::cad::SnapType::Endpoint
+        || start->point != arz::geometry::Point2D{0, 0}
+        || !midpoint || midpoint->objectId != arz::core::InvalidObjectId
+        || midpoint->type != arz::cad::SnapType::Midpoint
+        || midpoint->point != arz::geometry::Point2D{10, 0}
+        || !controller.document().objectIds().empty()) return false;
+    (void)controller.toggleDrafting(arz::interaction::DraftingToggle::ObjectSnap);
+    if (controller.snapCandidate({0.2, 0.1}, 0.5)) return false;
+    (void)controller.toggleDrafting(arz::interaction::DraftingToggle::ObjectSnap);
+    if (controller.canvasClick({0, 0}, 0.5) != arz::app::CanvasAction::EntityCreated
+        || controller.document().objectIds().size() != 1) return false;
+    const auto* polyline = dynamic_cast<const arz::cad::PolylineEntity*>(
+        controller.document().object(controller.selectedObjectId()));
+    return polyline && polyline->closed() && polyline->vertices().size() == 3;
+}
+
+bool testArcThreePointPreviewAndSafeInvalidState() {
+    arz::app::CadApplicationController controller;
+    controller.startArc();
+    (void)controller.canvasClick({0, 0}, 0.01);
+    if (!controller.document().objectIds().empty()) return false;
+    (void)controller.canvasClick({10, 10}, 0.01);
+    if (controller.document().objectIds().size() != 0
+        || controller.arcInputState() != arz::interaction::ArcInputState::AwaitingEnd)
+        return false;
+    for (int i = 0; i < 200; ++i)
+        controller.updatePointer({20.0, static_cast<double>(i) * 0.05}, 0.01);
+    if (!controller.overlayState().drawingArc()
+        || controller.document().objectIds().size() != 0) return false;
+    const auto preview = *controller.overlayState().drawingArc();
+    if (!near(preview.throughPoint.x, 10) || !near(preview.throughPoint.y, 10)
+        || !near(preview.endPoint.x, 20) || !near(preview.endPoint.y, 9.95)
+        || preview.sweepAngle <= 0.0) return false;
+    if (controller.canvasClick({20, 0}, 0.01) != arz::app::CanvasAction::EntityCreated
+        || controller.document().objectIds().size() != 1) return false;
+    const auto* arc = dynamic_cast<const arz::cad::ArcEntity*>(
+        controller.document().object(controller.selectedObjectId()));
+    if (!arc || arz::geometry::distanceToArc({10, 10}, arc->center(), arc->radius(),
+            arc->startAngle(), arc->endAngle(), arc->counterClockwise()) > 1e-5)
+        return false;
+
+    controller.startArc();
+    (void)controller.canvasClick({0, 0}, 0.01);
+    (void)controller.canvasClick({10, 0}, 0.01);
+    controller.updatePointer({20, 0}, 0.01);
+    if (controller.overlayState().drawingArc() || !controller.document().contains(arc->id()))
+        return false;
+    (void)controller.escape();
+    return controller.arcInputState() == arz::interaction::ArcInputState::Inactive
+        && controller.document().objectIds().size() == 1;
+}
+
 bool testAliasesParserAndRenderAdapters() {
     arz::interaction::CommandRegistry registry;
     if (!registry.resolve("PL") || registry.resolve("PL")->canonicalName != "PLINE"
@@ -191,6 +253,8 @@ int main() {
     run("EntitiesAndUndoRedoCommands", testEntitiesAndUndoRedoCommands());
     run("SelectionAndSnappingCoverage", testSelectionAndSnappingCoverage());
     run("InteractiveCommandsPreviewsAndClipboard", testInteractiveCommandsPreviewsAndClipboard());
+    run("TransientPolylineSnapping", testTransientPolylineSnapping());
+    run("ArcThreePointPreviewAndSafeInvalidState", testArcThreePointPreviewAndSafeInvalidState());
     run("AliasesParserAndRenderAdapters", testAliasesParserAndRenderAdapters());
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

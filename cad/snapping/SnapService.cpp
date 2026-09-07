@@ -74,6 +74,15 @@ std::vector<SnapResult> SnapService::candidates(
     double tolerance,
     std::span<const SnapType> enabledTypes
 ) const {
+    return candidates(queryPoint, tolerance, enabledTypes, {});
+}
+
+std::vector<SnapResult> SnapService::candidates(
+    arz::geometry::Point2D queryPoint,
+    double tolerance,
+    std::span<const SnapType> enabledTypes,
+    std::span<const SnapPoint> transientPoints
+) const {
     if (enabledTypes.empty()
         || tolerance < 0.0
         || !std::isfinite(tolerance)
@@ -129,6 +138,17 @@ std::vector<SnapResult> SnapService::candidates(
         }
     }
 
+    for (const auto& snapPoint : transientPoints) {
+        if (std::ranges::find(enabledTypes, snapPoint.type) == enabledTypes.end()) {
+            continue;
+        }
+        const double snapDistance = arz::geometry::distance(queryPoint, snapPoint.point);
+        if (std::isfinite(snapDistance) && snapDistance <= tolerance) {
+            results.push_back({arz::core::InvalidObjectId, snapPoint.type,
+                               snapPoint.point, snapDistance});
+        }
+    }
+
     std::ranges::sort(results, rankedBefore);
     std::set<std::tuple<arz::core::ObjectId, double, double>>
         uniquePoints;
@@ -154,10 +174,20 @@ std::optional<SnapResult> SnapService::bestSnap(
     double tolerance,
     std::span<const SnapType> enabledTypes
 ) const {
+    return bestSnap(queryPoint, tolerance, enabledTypes, {});
+}
+
+std::optional<SnapResult> SnapService::bestSnap(
+    arz::geometry::Point2D queryPoint,
+    double tolerance,
+    std::span<const SnapType> enabledTypes,
+    std::span<const SnapPoint> transientPoints
+) const {
     auto results = candidates(
         queryPoint,
         tolerance,
-        enabledTypes
+        enabledTypes,
+        transientPoints
     );
 
     if (results.empty()) {

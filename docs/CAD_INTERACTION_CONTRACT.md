@@ -54,6 +54,18 @@ uses three points in start, through, end order. All point stages share SnapServi
 all pending geometry stays in OverlayState, and only a complete entity reaches the
 Document through its explicit transaction command.
 
+While PLINE is active, the shared SnapService ranking pipeline also receives
+ObjectId-free transient candidates for every acquired vertex and segment midpoint.
+They are combined with document candidates, ranked by the same deterministic policy,
+and discarded when the command ends. F3 disables both sources. The active geometry
+never enters Document or the spatial index.
+
+ARC remains active after the first two points. Cursor movement after P2 creates only
+a transient three-point arc preview, reference construction lines, and dynamic
+radius/sweep information. Only a confirmed third point creates an ArcEntity;
+Enter/right-click before P3 cancels the provisional state without mutation, and
+collinear provisional input is safely hidden.
+
 ## Cancellation
 
 Escape is idempotent and follows this priority:
@@ -65,7 +77,7 @@ Escape is idempotent and follows this priority:
 5. Clear the selection set.
 6. Remain idle.
 
-Undo and redo safely cancel active LINE input and remove stale selection IDs after
+Undo and redo safely cancel active drawing input and remove stale selection IDs after
 spatial-index synchronization.
 
 ## Selection
@@ -100,8 +112,8 @@ Delete never mutates the model from a key handler. One `DeleteEntitiesCommand`
 extracts all selected supported entities as one history entry. Undo restores their
 original objects and IDs; redo removes them again.
 
-The internal CAD clipboard stores immutable deterministic value snapshots,
-currently for Line entities. It stores layer, geometry, graphics data, and a base
+The internal CAD clipboard stores immutable deterministic value snapshots for Line,
+Polyline, Circle, and Arc entities. It stores layer, geometry, graphics data, and a base
 point at the copied set's minimum bounds corner—never entity pointers. Copy does
 not mutate the document. Cut is copy followed by one undoable multi-delete
 transaction.
@@ -110,7 +122,7 @@ Ctrl+V enters transient repeated paste placement without creating document
 objects. Every pointer update computes `preview = immutable clipboard source +
 absolute placement delta`; preview data is never used as the next source. Each
 click (or confirm at the current insertion point) constructs one final copied set
-and executes one `AddLinesCommand`, then paste placement remains active for the
+and executes one mixed-entity add command, then paste placement remains active for the
 next location. Every placement receives new IDs and is an independent undo entry.
 Escape discards the current preview and exits paste without another mutation. The
 stored base point is the copied geometry's minimum bounds corner and is ready for
@@ -123,6 +135,17 @@ One paste invocation supports repeated placements until explicitly finished.
 Right-click or Escape exits repeated paste without committing the current preview.
 Enter and Space retain their paste placement meaning: they commit once at the
 current resolved insertion point and leave paste active.
+
+## Canvas Right-Click Policy
+
+The canvas routes right-click through one context-sensitive policy. While a
+point-acquisition command is active, right-click is consumed by the controller as
+the command's shared finish/confirm behavior; it never opens a menu. While idle,
+right-click opens a native Qt menu near the cursor. The idle menu exposes Repeat
+Last Command, Recent Input from the existing command history, a Clipboard submenu,
+and Properties. With a selection it additionally exposes Erase, Copy Selection,
+Deselect All, and Properties. Each enabled action calls the existing controller,
+clipboard, selection, or transaction API; no menu callback mutates Document directly.
 
 ## Shortcut and Focus Routing
 

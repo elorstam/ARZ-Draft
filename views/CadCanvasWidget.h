@@ -29,6 +29,7 @@ public:
         std::function<void(arz::geometry::Point2D)> callback
     );
     void setStateChangedCallback(std::function<void()> callback);
+    void setContextMenuCallback(std::function<void(QPointF)> callback);
     void cancelActiveTool();
     void refreshInteractionPointer();
     [[nodiscard]] arz::geometry::Point2D hoverWorldPoint() const noexcept;
@@ -58,6 +59,7 @@ private:
     std::optional<arz::cad::SnapResult> snap_;
     std::function<void(arz::geometry::Point2D)> coordinatesChanged_;
     std::function<void()> stateChanged_;
+    std::function<void(QPointF)> contextMenuRequested_;
     bool panning_{false};
     bool viewportInitialized_{false};
 };

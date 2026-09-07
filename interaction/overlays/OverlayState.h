@@ -36,6 +36,8 @@ struct TransientArc final {
     double startAngle{};
     double sweepAngle{};
     bool counterClockwise{true};
+    arz::geometry::Point2D throughPoint{};
+    arz::geometry::Point2D endPoint{};
 };
 
 struct PastePlacementOverlay final {

@@ -5,6 +5,7 @@
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMouseEvent>
 
 #include "app/ui/MainWindow.h"
 #include "views/CadCanvasWidget.h"
@@ -62,6 +63,21 @@ int main(int argc, char* argv[]) {
     if (!linePromptVisible()) return EXIT_FAILURE;
     press(*canvas, Qt::Key_Space, QStringLiteral(" "));
     if (linePromptVisible()) return EXIT_FAILURE;
+    int idleMenuRequests = 0;
+    canvas->setContextMenuCallback([&idleMenuRequests](QPointF) { ++idleMenuRequests; });
+    QMouseEvent idleRightClick(QEvent::MouseButtonPress, QPointF(80, 80),
+                               Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &idleRightClick);
+    QApplication::processEvents();
+    if (idleMenuRequests != 1) return EXIT_FAILURE;
+    press(*canvas, Qt::Key_L, QStringLiteral("l"));
+    press(*canvas, Qt::Key_Return);
+    QMouseEvent activeRightClick(QEvent::MouseButtonPress, QPointF(80, 80),
+                                 Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &activeRightClick);
+    QApplication::processEvents();
+    if (idleMenuRequests != 1) return EXIT_FAILURE;
+    press(*canvas, Qt::Key_Escape);
     std::cout << "UI input routing tests passed\n";
     return EXIT_SUCCESS;
 }

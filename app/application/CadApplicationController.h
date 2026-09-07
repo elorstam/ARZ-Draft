@@ -56,6 +56,7 @@ public:
     [[nodiscard]] bool finishSelectionWindow(bool removalMode);
     [[nodiscard]] std::optional<arz::cad::SnapResult> snapCandidate(
         arz::geometry::Point2D worldPoint, double worldTolerance) const;
+    [[nodiscard]] bool pointAcquisitionActive() const noexcept;
 
     bool undo();
     bool redo();

@@ -94,6 +94,13 @@ void QtOverlayRenderer::render(
             (arc->counterClockwise ? arc->sweepAngle : -arc->sweepAngle)
             * 180.0 / std::numbers::pi * 16.0));
         painter.drawArc(bounds, start, span);
+        painter.setPen(QPen(QColor(150, 205, 230, 180), 1.0, Qt::DotLine));
+        painter.drawLine(screenPoint(context, arc->center),
+                         screenPoint(context, arc->throughPoint));
+        painter.drawLine(screenPoint(context, arc->center),
+                         screenPoint(context, arc->endPoint));
+        painter.drawLine(screenPoint(context, arc->throughPoint),
+                         screenPoint(context, arc->endPoint));
     }
 
     if (snap) {

@@ -38,6 +38,10 @@ void CadCanvasWidget::setStateChangedCallback(
     stateChanged_ = std::move(callback);
 }
 
+void CadCanvasWidget::setContextMenuCallback(std::function<void(QPointF)> callback) {
+    contextMenuRequested_ = std::move(callback);
+}
+
 void CadCanvasWidget::cancelActiveTool() {
     controller_.cancel();
     snap_.reset();
@@ -123,7 +127,11 @@ void CadCanvasWidget::mousePressEvent(QMouseEvent* event) {
     }
 
     if (event->button() == Qt::RightButton) {
-        (void)controller_.rightClick();
+        if (controller_.pointAcquisitionActive()) {
+            (void)controller_.rightClick();
+        } else if (contextMenuRequested_) {
+            contextMenuRequested_(event->position());
+        }
         updateHover(event->position());
         update();
         if (stateChanged_) stateChanged_();

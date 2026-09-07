@@ -9,6 +9,7 @@
 #include "cad/snapping/SnapResult.h"
 #include "geometry/primitives/Point2D.h"
 #include "rendering/QtDocumentRenderer.h"
+#include "rendering/QtOverlayRenderer.h"
 #include "rendering/Viewport2D.h"
 
 namespace arz::app {
@@ -48,7 +49,8 @@ private:
 
     arz::app::CadApplicationController& controller_;
     arz::rendering::Viewport2D viewport_;
-    arz::rendering::QtDocumentRenderer renderer_;
+    arz::rendering::QtDocumentRenderer documentRenderer_;
+    arz::rendering::QtOverlayRenderer overlayRenderer_;
     QPointF cursorPosition_{};
     QPointF lastPanPosition_{};
     arz::geometry::Point2D hoverWorld_{};

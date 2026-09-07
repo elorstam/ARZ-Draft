@@ -52,10 +52,10 @@ For every task:
 
 ## Current Phase
 
-Phase 1.0.1 — CAD Interaction Foundation.
+Phase 1.1 — Rendering Foundation.
 
-Do not start Phase 1.1, BIM, DWG, OpenCascade, AI features,
-automatic sections or automatic elevations during Phase 1.0.1.
+Do not start Phase 1.2, BIM, DWG, OpenCascade, AI features,
+automatic sections or automatic elevations during Phase 1.1.
 
 ## End-of-Phase Workflow
 

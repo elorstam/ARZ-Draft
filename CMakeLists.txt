@@ -59,6 +59,9 @@ add_library(arz_application STATIC
     interaction/overlays/OverlayState.cpp
     interaction/tools/LineInputController.cpp
     rendering/Viewport2D.cpp
+    rendering/ScreenLineWeightPolicy.cpp
+    rendering/LineRenderAdapter.cpp
+    rendering/DocumentRenderPlanner.cpp
 )
 
 target_include_directories(arz_application
@@ -81,6 +84,7 @@ add_executable(arz_draft
     app/ui/CadRibbonWidget.cpp
     app/ui/MainWindow.cpp
     rendering/QtDocumentRenderer.cpp
+    rendering/QtOverlayRenderer.cpp
     views/CadCanvasWidget.cpp
 )
 
@@ -230,6 +234,12 @@ add_executable(arz_cad_interaction_tests
 target_link_libraries(arz_cad_interaction_tests PRIVATE arz_application)
 add_test(NAME cad_interaction_tests COMMAND arz_cad_interaction_tests)
 
+add_executable(arz_rendering_foundation_tests
+    tests/rendering_foundation_tests.cpp
+)
+target_link_libraries(arz_rendering_foundation_tests PRIVATE arz_application)
+add_test(NAME rendering_foundation_tests COMMAND arz_rendering_foundation_tests)
+
 add_executable(arz_ui_shell_tests
     app/ui/CadRibbonWidget.cpp
     tests/ui_shell_tests.cpp
@@ -256,6 +266,7 @@ add_executable(arz_ui_input_routing_tests
     app/ui/CadRibbonWidget.cpp
     app/ui/MainWindow.cpp
     rendering/QtDocumentRenderer.cpp
+    rendering/QtOverlayRenderer.cpp
     views/CadCanvasWidget.cpp
     tests/ui_input_routing_tests.cpp
 )

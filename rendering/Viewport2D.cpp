@@ -86,4 +86,17 @@ double Viewport2D::scale() const noexcept {
     return scale_;
 }
 
+arz::geometry::BoundingBox2D Viewport2D::visibleWorldBounds(
+    arz::geometry::Point2D screenSize
+) const noexcept {
+    const auto first = screenToWorld({0.0, 0.0});
+    const auto second = screenToWorld({
+        std::max(screenSize.x, 0.0),
+        std::max(screenSize.y, 0.0)
+    });
+    return arz::geometry::BoundingBox2D{
+        first.x, first.y, second.x, second.y
+    }.normalized();
+}
+
 }

@@ -110,7 +110,7 @@ After Phase 1.0, engine and UI development proceed in parallel.
 
 ## 1.0.1 CAD Interaction Foundation
 
-AUTOMATED COMPLETE — HUMAN ACCEPTANCE PENDING
+HUMAN ACCEPTED
 
 Established the shared professional CAD interaction contract before adding more
 drawing/editing commands:
@@ -126,9 +126,20 @@ drawing/editing commands:
 - interactive immutable-source paste placement
 
 The initial manual review findings were corrected in a follow-up Phase 1.0.1
-commit. Human re-testing remains required.
+commit and accepted by the user.
 
-Phase 1.1 must not begin until this phase has been manually accepted.
+## 1.1 Rendering Foundation
+
+AUTOMATED COMPLETE — HUMAN ACCEPTANCE PENDING
+
+- Qt-free render context and primitive planning
+- extensible entity adapters with Line support
+- explicit ObjectId draw order and visible-bounds culling
+- centralized screen lineweight policy
+- separate persistent document and transient overlay passes
+- viewport visible-world-bounds support
+
+Phase 1.2 must not begin until this phase has been manually accepted.
 
 ---
 

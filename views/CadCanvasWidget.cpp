@@ -10,7 +10,7 @@
 #include <QWheelEvent>
 
 #include "app/application/CadApplicationController.h"
-#include "cad/entities/CadEntity.h"
+#include "rendering/RenderContext.h"
 
 namespace arz::views {
 
@@ -61,12 +61,17 @@ void CadCanvasWidget::paintEvent(QPaintEvent*) {
             snap_ ? snap_->point : hoverWorld_
           )
         : std::nullopt;
-    renderer_.render(
+    const auto context = arz::rendering::makeRenderContext(
+        viewport_,
+        {static_cast<double>(width()), static_cast<double>(height())},
+        controller_.selection().ids()
+    );
+    documentRenderer_.render(
+        painter, size(), controller_.document(), context);
+    overlayRenderer_.render(
         painter,
         size(),
-        controller_.document(),
-        viewport_,
-        controller_.selection().ids(),
+        context,
         previewStart,
         previewEnd,
         snap_,
@@ -143,20 +148,8 @@ void CadCanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
 
 void CadCanvasWidget::mouseDoubleClickEvent(QMouseEvent* event) {
     if (event->button() == Qt::MiddleButton) {
-        std::optional<arz::geometry::BoundingBox2D> bounds;
-        for (const auto id : controller_.document().objectIds()) {
-            const auto* entity = dynamic_cast<const arz::cad::CadEntity*>(
-                controller_.document().object(id));
-            if (!entity) continue;
-            const auto box = entity->boundingBox().normalized();
-            if (!bounds) bounds = box;
-            else {
-                bounds->minX = std::min(bounds->minX, box.minX);
-                bounds->minY = std::min(bounds->minY, box.minY);
-                bounds->maxX = std::max(bounds->maxX, box.maxX);
-                bounds->maxY = std::max(bounds->maxY, box.maxY);
-            }
-        }
+        const auto bounds = documentRenderer_.visibleDocumentBounds(
+            controller_.document());
         if (bounds) viewport_.zoomExtents(*bounds,
             {static_cast<double>(width()), static_cast<double>(height())});
         updateHover(event->position());

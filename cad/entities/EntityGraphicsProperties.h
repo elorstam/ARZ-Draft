@@ -8,6 +8,8 @@
 namespace arz::cad {
 
 struct EntityGraphicsProperties final {
+    [[nodiscard]] bool operator==(const EntityGraphicsProperties&) const = default;
+
     GraphicsPropertySource colorSource{
         GraphicsPropertySource::ByLayer
     };

@@ -28,6 +28,9 @@ public:
                      double marginPixels = 40.0) noexcept;
 
     [[nodiscard]] double scale() const noexcept;
+    [[nodiscard]] arz::geometry::BoundingBox2D visibleWorldBounds(
+        arz::geometry::Point2D screenSize
+    ) const noexcept;
 
 private:
     double scale_{0.1};

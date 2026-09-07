@@ -1,7 +1,7 @@
 ﻿# PROJECT STATE
 
 ## Current Phase
-Phase 1.0.1 — CAD Interaction Foundation
+Phase 1.1 — Rendering Foundation
 
 ## Completed
 - C++23 / MSVC / CMake toolchain working
@@ -74,6 +74,15 @@ Phase 1.0.1 — CAD Interaction Foundation
 - CAD-style two-click Window/Crossing selection
 - Interactive immutable-source paste preview and single-click commit
 - Ctrl+V auto-repeat protection and copy/paste geometry-explosion regression coverage
+- Qt-free render context and backend-neutral render primitives
+- Extensible entity render adapter boundary with LineRenderAdapter
+- Explicit stable ObjectId render ordering
+- Visible-world-bounds culling before graphics resolution
+- Central screen lineweight display policy
+- Separate QPainter document and transient overlay passes
+- Viewport visible-world-bounds calculation
+- Canvas free of entity-specific rendering and Zoom Extents branches
+- Reused render-scene storage for paint-loop efficiency
 
 ## Tests
 Passing:
@@ -88,15 +97,12 @@ Passing:
 - cad_interaction_tests
 - ui_shell_tests
 - ui_input_routing_tests
+- rendering_foundation_tests
 
 ## Last Known Status
-All Phase 1.0 and Phase 1.0.1 automated tests pass in the Debug MSVC/Qt
-configuration. The normal application is launched at the end of the phase for
-human acceptance; automated verification does not substitute for that acceptance.
-
-The first Phase 1.0.1 manual review was not accepted. Its command suggestion,
-two-click selection, and interactive paste findings have been corrected and await
-a new human acceptance pass.
+Phases 1.0 and 1.0.1 are HUMAN ACCEPTED. All Phase 1.1 automated tests pass in
+the Debug MSVC/Qt configuration. The normal application is launched at the end of
+the phase for human acceptance; automated verification does not substitute for it.
 
 ## Spatial Index Synchronization
 The spatial index is a derived service outside Document. Phase 0.9
@@ -108,7 +114,7 @@ ownership to the initial index implementation and allows later
 automatic synchronization without changing selection query APIs.
 
 ## Next Phase
-Human acceptance of Phase 1.0.1, then the next approved Phase 1.x milestone.
+Human acceptance of Phase 1.1, then the next approved Phase 1.x milestone.
 
 Goals:
 - expand manual drawing and editing commands
@@ -120,12 +126,12 @@ Do not start BIM.
 Do not start DWG integration yet.
 Do not bypass command/transaction architecture.
 
-## Phase 1.0.1 Acceptance Status
+## Phase 1.1 Acceptance Status
 
 AUTOMATED COMPLETE after the phase commit is pushed. HUMAN ACCEPTED remains
-pending until the user verifies direct typing, repeat, prompts, selection modes,
-editing shortcuts, drafting toggles, mouse navigation and focus safety in the
-normal live application.
+pending until the user verifies persistent lines, selection highlight, lineweight
+display, zoom/pan, snapping, transient overlays, paste preview, undo/redo redraw,
+and absence of obvious flicker or rendering regressions in the normal application.
 
 ## Locked UI Direction
 

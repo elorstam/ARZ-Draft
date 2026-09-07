@@ -48,6 +48,12 @@ has its own stable `ObjectId` and undo history entry. LINE does not create a
 Polyline or share future PLINE model or connected-chain semantics. Both points of
 every independent segment use the shared SnapService while Object Snap is enabled.
 
+PLINE owns a connected vertex sequence and finishes open with Enter/right-click,
+or closed with the `Close` option (`C`). CIRCLE uses center plus radius point. ARC
+uses three points in start, through, end order. All point stages share SnapService,
+all pending geometry stays in OverlayState, and only a complete entity reaches the
+Document through its explicit transaction command.
+
 ## Cancellation
 
 Escape is idempotent and follows this priority:

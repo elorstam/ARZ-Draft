@@ -48,5 +48,14 @@ void OverlayState::clearPastePlacement() noexcept { pastePlacement_.reset(); }
 const std::optional<PastePlacementOverlay>& OverlayState::pastePlacement() const noexcept {
     return pastePlacement_;
 }
+void OverlayState::setDrawingPolyline(TransientPolyline value) { drawingPolyline_ = std::move(value); }
+void OverlayState::clearDrawingPolyline() noexcept { drawingPolyline_.reset(); }
+const std::optional<TransientPolyline>& OverlayState::drawingPolyline() const noexcept { return drawingPolyline_; }
+void OverlayState::setDrawingCircle(TransientCircle value) { drawingCircle_ = value; }
+void OverlayState::clearDrawingCircle() noexcept { drawingCircle_.reset(); }
+const std::optional<TransientCircle>& OverlayState::drawingCircle() const noexcept { return drawingCircle_; }
+void OverlayState::setDrawingArc(TransientArc value) { drawingArc_ = value; }
+void OverlayState::clearDrawingArc() noexcept { drawingArc_.reset(); }
+const std::optional<TransientArc>& OverlayState::drawingArc() const noexcept { return drawingArc_; }
 
 }

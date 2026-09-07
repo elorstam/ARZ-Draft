@@ -10,6 +10,9 @@ namespace arz::interaction {
 enum class CadCommand {
     Unknown = 0,
     Line,
+    Polyline,
+    Circle,
+    Arc,
     Undo,
     Redo,
     Cancel

@@ -145,16 +145,27 @@ AUTOMATED COMPLETE — HUMAN ACCEPTANCE PENDING
 Live-review corrections are automated-verified. Phase 1.2 must not begin until
 this phase has been manually accepted.
 
+## 1.2 Core 2D Drawing Entities
+
+AUTOMATED COMPLETE — HUMAN ACCEPTANCE PENDING
+
+- PLINE with open finish and Close option
+- CIRCLE by center and radius point
+- ARC through three points
+- command aliases, autocomplete, prompts and transient previews
+- rendering, selection, snapping and read-only properties for each entity
+- mixed-entity copy/paste through one undoable transaction
+- complete command undo/redo and regression coverage
+
+Phase 1.3 must not begin until Phase 1.2 is human accepted.
+
 ---
 
 ## Phase 1.x — Manual 2D CAD Expansion
 
 NEXT
 
-Planned:
-- POLYLINE
-- CIRCLE
-- ARC
+Planned after Phase 1.2 acceptance:
 - MOVE
 - COPY
 - ROTATE

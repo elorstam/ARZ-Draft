@@ -4,7 +4,9 @@ namespace arz::cad {
 
 enum class SnapType {
     Endpoint = 0,
-    Midpoint
+    Midpoint,
+    Center,
+    Quadrant
 };
 
 }

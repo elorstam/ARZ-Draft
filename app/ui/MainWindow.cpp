@@ -1,6 +1,7 @@
 #include "app/ui/MainWindow.h"
 
 #include <algorithm>
+#include <numbers>
 
 #include <QAction>
 #include <QApplication>
@@ -24,6 +25,9 @@
 
 #include "app/ui/CadRibbonWidget.h"
 #include "cad/entities/LineEntity.h"
+#include "cad/entities/PolylineEntity.h"
+#include "cad/entities/CircleEntity.h"
+#include "cad/entities/ArcEntity.h"
 #include "views/CadCanvasWidget.h"
 
 namespace arz::app {
@@ -88,11 +92,27 @@ void MainWindow::buildRibbonHeader() {
     connect(redoAction_, &QAction::triggered, this, [this] { performRedo(); });
     auto* lineAction = new QAction(QStringLiteral("&Line"), this);
     connect(lineAction, &QAction::triggered, this, [this] { startLine(); });
+    auto* polylineAction = new QAction(QStringLiteral("&Polyline"), this);
+    connect(polylineAction, &QAction::triggered, this, [this] {
+        controller_.startPolyline(); canvas_->setFocus(); canvas_->update(); refreshUi();
+    });
+    auto* circleAction = new QAction(QStringLiteral("&Circle"), this);
+    connect(circleAction, &QAction::triggered, this, [this] {
+        controller_.startCircle(); canvas_->setFocus(); canvas_->update(); refreshUi();
+    });
+    auto* arcAction = new QAction(QStringLiteral("&Arc"), this);
+    connect(arcAction, &QAction::triggered, this, [this] {
+        controller_.startArc(); canvas_->setFocus(); canvas_->update(); refreshUi();
+    });
     addAction(lineAction);
+    addAction(polylineAction);
+    addAction(circleAction);
+    addAction(arcAction);
     addAction(undoAction_);
     addAction(redoAction_);
 
-    auto* ribbon = new CadRibbonWidget({exitAction, lineAction, undoAction_, redoAction_});
+    auto* ribbon = new CadRibbonWidget({exitAction, lineAction, polylineAction,
+        circleAction, arcAction, undoAction_, redoAction_});
     setMenuWidget(ribbon);
     layerSelector_ = ribbon->layerSelector();
     auto layerIds = controller_.document().layers().ids();
@@ -119,6 +139,9 @@ void MainWindow::buildPropertiesPanel() {
     layerValue_ = propertyValue(); startXValue_ = propertyValue();
     startYValue_ = propertyValue(); endXValue_ = propertyValue();
     endYValue_ = propertyValue(); lengthValue_ = propertyValue();
+    verticesValue_ = propertyValue(); closedValue_ = propertyValue();
+    centerXValue_ = propertyValue(); centerYValue_ = propertyValue();
+    radiusValue_ = propertyValue(); angleValue_ = propertyValue();
     form->addRow(QStringLiteral("ObjectId"), objectIdValue_);
     form->addRow(QStringLiteral("Entity type"), entityTypeValue_);
     form->addRow(QStringLiteral("Layer"), layerValue_);
@@ -127,6 +150,12 @@ void MainWindow::buildPropertiesPanel() {
     form->addRow(QStringLiteral("End X"), endXValue_);
     form->addRow(QStringLiteral("End Y"), endYValue_);
     form->addRow(QStringLiteral("Length"), lengthValue_);
+    form->addRow(QStringLiteral("Vertices"), verticesValue_);
+    form->addRow(QStringLiteral("Closed"), closedValue_);
+    form->addRow(QStringLiteral("Center X"), centerXValue_);
+    form->addRow(QStringLiteral("Center Y"), centerYValue_);
+    form->addRow(QStringLiteral("Radius"), radiusValue_);
+    form->addRow(QStringLiteral("Angles"), angleValue_);
     form->addItem(new QSpacerItem(1, 1, QSizePolicy::Minimum, QSizePolicy::Expanding));
     dock->setWidget(panel);
     addDockWidget(Qt::LeftDockWidgetArea, dock);
@@ -221,18 +250,54 @@ void MainWindow::refreshUi() {
 }
 
 void MainWindow::refreshProperties() {
-    const auto* line = dynamic_cast<const arz::cad::LineEntity*>(
+    const auto* entity = dynamic_cast<const arz::cad::CadEntity*>(
         controller_.document().object(controller_.selectedObjectId()));
+    const auto* line = dynamic_cast<const arz::cad::LineEntity*>(
+        entity);
     const auto clear = [this] {
         for (auto* label : {objectIdValue_, entityTypeValue_, layerValue_, startXValue_,
                             startYValue_, endXValue_, endYValue_, lengthValue_})
             label->setText(QStringLiteral("—"));
     };
-    if (!line) {
+    for (auto* label : {verticesValue_, closedValue_, centerXValue_, centerYValue_,
+                        radiusValue_, angleValue_})
+        label->setText(QStringLiteral("--"));
+    if (!entity) {
         clear();
         if (controller_.selection().size() > 1) {
             objectIdValue_->setText(QStringLiteral("%1 objects").arg(controller_.selection().size()));
             entityTypeValue_->setText(QStringLiteral("Multiple selection"));
+        }
+        return;
+    }
+    if (!line) {
+        clear();
+        for (auto* label : {verticesValue_, closedValue_, centerXValue_, centerYValue_,
+                            radiusValue_, angleValue_})
+            label->setText(QStringLiteral("--"));
+        const auto* layer = controller_.document().layers().get(entity->layerId());
+        objectIdValue_->setText(QString::number(entity->id()));
+        layerValue_->setText(layer ? QString::fromStdString(layer->name()) : QStringLiteral("Unknown"));
+        if (const auto* polyline = dynamic_cast<const arz::cad::PolylineEntity*>(entity)) {
+            entityTypeValue_->setText(QStringLiteral("Polyline"));
+            verticesValue_->setText(QString::number(polyline->vertices().size()));
+            closedValue_->setText(polyline->closed() ? QStringLiteral("Yes") : QStringLiteral("No"));
+            lengthValue_->setText(QStringLiteral("%1 mm").arg(polyline->length(), 0, 'f', 3));
+        } else if (const auto* circle = dynamic_cast<const arz::cad::CircleEntity*>(entity)) {
+            entityTypeValue_->setText(QStringLiteral("Circle"));
+            centerXValue_->setText(QString::number(circle->center().x, 'f', 3));
+            centerYValue_->setText(QString::number(circle->center().y, 'f', 3));
+            radiusValue_->setText(QStringLiteral("%1 mm").arg(circle->radius(), 0, 'f', 3));
+            lengthValue_->setText(QStringLiteral("%1 mm").arg(circle->circumference(), 0, 'f', 3));
+        } else if (const auto* arc = dynamic_cast<const arz::cad::ArcEntity*>(entity)) {
+            entityTypeValue_->setText(QStringLiteral("Arc"));
+            centerXValue_->setText(QString::number(arc->center().x, 'f', 3));
+            centerYValue_->setText(QString::number(arc->center().y, 'f', 3));
+            radiusValue_->setText(QStringLiteral("%1 mm").arg(arc->radius(), 0, 'f', 3));
+            angleValue_->setText(QStringLiteral("%1 deg to %2 deg").arg(
+                arc->startAngle() * 180.0 / std::numbers::pi, 0, 'f', 2).arg(
+                arc->endAngle() * 180.0 / std::numbers::pi, 0, 'f', 2));
+            lengthValue_->setText(QStringLiteral("%1 mm").arg(arc->length(), 0, 'f', 3));
         }
         return;
     }

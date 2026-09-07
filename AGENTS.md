@@ -52,10 +52,10 @@ For every task:
 
 ## Current Phase
 
-Phase 1.1 — Rendering Foundation.
+Phase 1.2 — Core 2D Drawing Entities.
 
-Do not start Phase 1.2, BIM, DWG, OpenCascade, AI features,
-automatic sections or automatic elevations during Phase 1.1.
+Do not start Phase 1.3, BIM, DWG, OpenCascade, AI features,
+automatic sections or automatic elevations during Phase 1.2.
 
 ## End-of-Phase Workflow
 

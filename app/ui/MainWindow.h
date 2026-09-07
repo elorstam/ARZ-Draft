@@ -55,6 +55,12 @@ private:
     QLabel* endXValue_{nullptr};
     QLabel* endYValue_{nullptr};
     QLabel* lengthValue_{nullptr};
+    QLabel* verticesValue_{nullptr};
+    QLabel* closedValue_{nullptr};
+    QLabel* centerXValue_{nullptr};
+    QLabel* centerYValue_{nullptr};
+    QLabel* radiusValue_{nullptr};
+    QLabel* angleValue_{nullptr};
     QToolButton* objectSnapToggle_{nullptr};
     QToolButton* gridToggle_{nullptr};
     QToolButton* orthoToggle_{nullptr};

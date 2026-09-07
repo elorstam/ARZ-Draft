@@ -1,7 +1,7 @@
 ﻿# PROJECT STATE
 
 ## Current Phase
-Phase 1.1 — Rendering Foundation
+Phase 1.2 — Core 2D Drawing Entities
 
 ## Completed
 - C++23 / MSVC / CMake toolchain working
@@ -86,6 +86,16 @@ Phase 1.1 — Rendering Foundation
 - Repeating LINE sessions creating separate, independent, individually undoable LineEntity objects
 - Repeated endpoint/midpoint-snapped paste placement from one immutable clipboard snapshot
 - Right-click exit for LINE and repeated paste without geometry or history mutation
+- PolylineEntity, CircleEntity and ArcEntity geometry with stable ObjectIds
+- Explicit undoable add commands for PLINE, CIRCLE and three-point ARC
+- Qt-free input controllers and live previews for the three new drawing commands
+- Entity render adapters and backend-neutral primitives for polylines, circles and arcs
+- Shape-refined point, Window and Crossing selection
+- Polyline vertex/segment, circle center/quadrant and arc endpoint/midpoint/center/quadrant snaps
+- Read-only entity-specific properties for polylines, circles and arcs
+- Atomic mixed-entity clipboard copy, preview, paste, undo and redo
+- Registry autocomplete and PL, C and A aliases
+- Functional ribbon actions for Polyline, Circle and Arc
 
 ## Tests
 Passing:
@@ -101,14 +111,13 @@ Passing:
 - ui_shell_tests
 - ui_input_routing_tests
 - rendering_foundation_tests
+- phase_1_2_tests
 
 ## Last Known Status
-Phases 1.0 and 1.0.1 are HUMAN ACCEPTED. Phase 1.1 live-review corrections for
-independent two-point LINE creation and repeated object-snapped paste placement
-plus shared right-click command exit pass all automated tests in the Debug
-MSVC/Qt configuration. The normal application is launched at the end of the
-corrective run for renewed human acceptance; automated verification does not
-substitute for it.
+Phases 1.0 and 1.0.1 are HUMAN ACCEPTED. Phase 1.2 adds PLINE, CIRCLE and
+three-point ARC across the command, transaction, rendering, selection, snapping,
+properties and clipboard boundaries. The complete Debug MSVC/Qt suite passes.
+Automated verification does not substitute for live human acceptance.
 
 ## Spatial Index Synchronization
 The spatial index is a derived service outside Document. Phase 0.9
@@ -120,7 +129,7 @@ ownership to the initial index implementation and allows later
 automatic synchronization without changing selection query APIs.
 
 ## Next Phase
-Human acceptance of Phase 1.1, then the next approved Phase 1.x milestone.
+Human acceptance of Phase 1.2, then the next approved Phase 1.x milestone.
 
 Goals:
 - expand manual drawing and editing commands
@@ -132,14 +141,13 @@ Do not start BIM.
 Do not start DWG integration yet.
 Do not bypass command/transaction architecture.
 
-## Phase 1.1 Acceptance Status
+## Phase 1.2 Acceptance Status
 
 AUTOMATED COMPLETE after the phase commit is pushed. HUMAN ACCEPTED remains
-pending until the user verifies persistent independent two-point LINE creation,
-repeated snapped paste placement from one invocation, persistent lines, selection
-highlight, right-click command exit, lineweight display, zoom/pan, transient
-overlays, undo/redo redraw, and absence of obvious flicker or rendering regressions
-in the normal application.
+pending until the user verifies PLINE open/close interaction, CIRCLE center/radius
+interaction, three-point ARC direction, live previews, new snap markers, refined
+selection, entity properties, mixed copy/paste, undo/redo redraw, and absence of
+obvious rendering regressions in the normal application.
 
 ## Locked UI Direction
 

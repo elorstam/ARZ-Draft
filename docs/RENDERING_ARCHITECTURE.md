@@ -35,11 +35,11 @@ visible-document bounds query rather than entity-specific canvas traversal.
 ## Entity Adapters and Primitives
 
 `IEntityRenderAdapter` is the extension boundary between Qt-free CAD entities and
-backend-neutral render primitives. Phase 1.1 registers `LineRenderAdapter`, which
-emits `LineRenderPrimitive` values containing ObjectId, endpoints, resolved style,
-and a transient selected flag.
+backend-neutral render primitives. `LineRenderAdapter`, `PolylineRenderAdapter`,
+`CircleRenderAdapter`, and `ArcRenderAdapter` emit corresponding primitives with
+stable ObjectId, geometry, resolved style, and a transient selected flag.
 
-Future Polyline, Circle, Arc, Text, Hatch, Dimension, and BlockReference support
+Future Text, Hatch, Dimension, and BlockReference support
 adds adapters and primitive/backend handling under `rendering/`; it does not add
 entity casts or switches to `CadCanvasWidget`.
 
@@ -93,7 +93,8 @@ explicit rendering policy, not an accidental document-storage contract.
 
 ## Overlay Pass
 
-The overlay renderer draws LINE previews, paste previews, snap markers,
+The overlay renderer draws LINE, PLINE, CIRCLE, and ARC previews, mixed-entity
+paste previews, snap markers,
 Window/Crossing rectangles, crosshair, dynamic input, and command suggestions.
 These remain outside `Document`, have no ObjectIds, are never culled as persistent
 geometry, and render after the document pass.

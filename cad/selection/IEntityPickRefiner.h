@@ -1,6 +1,7 @@
 #pragma once
 
 #include "geometry/primitives/Point2D.h"
+#include "geometry/primitives/BoundingBox2D.h"
 
 namespace arz::cad {
 
@@ -14,6 +15,16 @@ public:
         const CadEntity& entity,
         arz::geometry::Point2D point,
         double tolerance
+    ) const noexcept = 0;
+
+    [[nodiscard]] virtual bool intersects(
+        const CadEntity& entity,
+        arz::geometry::BoundingBox2D window
+    ) const noexcept = 0;
+
+    [[nodiscard]] virtual bool contained(
+        const CadEntity& entity,
+        arz::geometry::BoundingBox2D window
     ) const noexcept = 0;
 };
 

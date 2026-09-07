@@ -26,6 +26,9 @@ std::string normalized(std::string_view text) {
 CommandRegistry::CommandRegistry()
     : commands_{
         {CadCommand::Line, "LINE", {"L"}, true},
+        {CadCommand::Polyline, "PLINE", {"PL"}, true},
+        {CadCommand::Circle, "CIRCLE", {"C"}, true},
+        {CadCommand::Arc, "ARC", {"A"}, true},
         {CadCommand::Undo, "UNDO", {}, false},
         {CadCommand::Redo, "REDO", {}, false},
         {CadCommand::Cancel, "CANCEL", {"ESC"}, false}

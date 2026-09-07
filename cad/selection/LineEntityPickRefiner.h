@@ -11,6 +11,10 @@ public:
         arz::geometry::Point2D point,
         double tolerance
     ) const noexcept override;
+    [[nodiscard]] bool intersects(const CadEntity& entity,
+        arz::geometry::BoundingBox2D window) const noexcept override;
+    [[nodiscard]] bool contained(const CadEntity& entity,
+        arz::geometry::BoundingBox2D window) const noexcept override;
 };
 
 }

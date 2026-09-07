@@ -28,6 +28,9 @@ private:
     void drawLine(QPainter& painter,
                   const RenderContext& context,
                   const LineRenderPrimitive& line) const;
+    void drawPolyline(QPainter&, const RenderContext&, const PolylineRenderPrimitive&) const;
+    void drawCircle(QPainter&, const RenderContext&, const CircleRenderPrimitive&) const;
+    void drawArc(QPainter&, const RenderContext&, const ArcRenderPrimitive&) const;
 
     DocumentRenderPlanner planner_;
     RenderScene scene_;

@@ -10,6 +10,9 @@ namespace arz::app {
 struct RibbonActions final {
     QAction* exitAction{nullptr};
     QAction* lineAction{nullptr};
+    QAction* polylineAction{nullptr};
+    QAction* circleAction{nullptr};
+    QAction* arcAction{nullptr};
     QAction* undoAction{nullptr};
     QAction* redoAction{nullptr};
 };

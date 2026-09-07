@@ -22,6 +22,10 @@ int snapTypePriority(SnapType type) noexcept {
         return 0;
     case SnapType::Midpoint:
         return 1;
+    case SnapType::Center:
+        return 2;
+    case SnapType::Quadrant:
+        return 3;
     }
 
     return 2;

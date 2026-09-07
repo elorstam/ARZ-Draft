@@ -25,7 +25,32 @@ struct LineRenderPrimitive final {
     RenderStyle style{};
 };
 
-using RenderPrimitive = std::variant<LineRenderPrimitive>;
+struct PolylineRenderPrimitive final {
+    arz::core::ObjectId objectId{arz::core::InvalidObjectId};
+    std::vector<arz::geometry::Point2D> vertices;
+    bool closed{};
+    RenderStyle style{};
+};
+
+struct CircleRenderPrimitive final {
+    arz::core::ObjectId objectId{arz::core::InvalidObjectId};
+    arz::geometry::Point2D center{};
+    double radius{};
+    RenderStyle style{};
+};
+
+struct ArcRenderPrimitive final {
+    arz::core::ObjectId objectId{arz::core::InvalidObjectId};
+    arz::geometry::Point2D center{};
+    double radius{};
+    double startAngle{};
+    double sweepAngle{};
+    bool counterClockwise{true};
+    RenderStyle style{};
+};
+
+using RenderPrimitive = std::variant<LineRenderPrimitive, PolylineRenderPrimitive,
+                                     CircleRenderPrimitive, ArcRenderPrimitive>;
 
 class RenderScene final {
 public:
@@ -39,6 +64,9 @@ public:
     void append(LineRenderPrimitive primitive) {
         primitives_.emplace_back(std::move(primitive));
     }
+    void append(PolylineRenderPrimitive primitive) { primitives_.emplace_back(std::move(primitive)); }
+    void append(CircleRenderPrimitive primitive) { primitives_.emplace_back(std::move(primitive)); }
+    void append(ArcRenderPrimitive primitive) { primitives_.emplace_back(std::move(primitive)); }
 
     [[nodiscard]] const std::vector<RenderPrimitive>& primitives() const noexcept {
         return primitives_;

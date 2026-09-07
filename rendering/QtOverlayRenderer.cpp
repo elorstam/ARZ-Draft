@@ -1,6 +1,8 @@
 #include "rendering/QtOverlayRenderer.h"
 
 #include <algorithm>
+#include <cmath>
+#include <numbers>
 
 #include <QColor>
 #include <QPainter>
@@ -41,6 +43,57 @@ void QtOverlayRenderer::render(
             painter.drawLine(screenPoint(context, line.start),
                              screenPoint(context, line.end));
         }
+        for (const auto& polyline : paste->polylines) {
+            QPolygonF polygon;
+            for (const auto point : polyline.vertices) polygon << screenPoint(context, point);
+            if (polyline.closed && !polyline.vertices.empty())
+                polygon << screenPoint(context, polyline.vertices.front());
+            painter.drawPolyline(polygon);
+        }
+        for (const auto& circle : paste->circles) {
+            const auto center = screenPoint(context, circle.center);
+            const double radius = circle.radius * context.pixelsPerWorldUnit;
+            painter.drawEllipse(center, radius, radius);
+        }
+        for (const auto& arc : paste->arcs) {
+            const auto center = screenPoint(context, arc.center);
+            const double radius = arc.radius * context.pixelsPerWorldUnit;
+            const QRectF bounds(center.x() - radius, center.y() - radius,
+                                radius * 2.0, radius * 2.0);
+            const int start = static_cast<int>(std::lround(
+                arc.startAngle * 180.0 / std::numbers::pi * 16.0));
+            const int span = static_cast<int>(std::lround(
+                (arc.counterClockwise ? arc.sweepAngle : -arc.sweepAngle)
+                * 180.0 / std::numbers::pi * 16.0));
+            painter.drawArc(bounds, start, span);
+        }
+    }
+
+    painter.setPen(QPen(QColor(120, 210, 255), 1.2, Qt::DashLine));
+    painter.setBrush(Qt::NoBrush);
+    if (const auto& polyline = overlays.drawingPolyline()) {
+        QPolygonF polygon;
+        for (const auto point : polyline->vertices) polygon << screenPoint(context, point);
+        if (polyline->closed && !polyline->vertices.empty())
+            polygon << screenPoint(context, polyline->vertices.front());
+        painter.drawPolyline(polygon);
+    }
+    if (const auto& circle = overlays.drawingCircle()) {
+        const auto center = screenPoint(context, circle->center);
+        const double radius = circle->radius * context.pixelsPerWorldUnit;
+        painter.drawEllipse(center, radius, radius);
+    }
+    if (const auto& arc = overlays.drawingArc()) {
+        const auto center = screenPoint(context, arc->center);
+        const double radius = arc->radius * context.pixelsPerWorldUnit;
+        const QRectF bounds(center.x() - radius, center.y() - radius,
+                            radius * 2.0, radius * 2.0);
+        const int start = static_cast<int>(std::lround(
+            arc->startAngle * 180.0 / std::numbers::pi * 16.0));
+        const int span = static_cast<int>(std::lround(
+            (arc->counterClockwise ? arc->sweepAngle : -arc->sweepAngle)
+            * 180.0 / std::numbers::pi * 16.0));
+        painter.drawArc(bounds, start, span);
     }
 
     if (snap) {
@@ -49,12 +102,21 @@ void QtOverlayRenderer::render(
         painter.setBrush(Qt::NoBrush);
         if (snap->type == arz::cad::SnapType::Endpoint) {
             painter.drawRect(QRectF(marker.x() - 5.0, marker.y() - 5.0, 10.0, 10.0));
-        } else {
+        } else if (snap->type == arz::cad::SnapType::Midpoint) {
             QPolygonF triangle;
             triangle << QPointF(marker.x(), marker.y() - 6.0)
                      << QPointF(marker.x() - 6.0, marker.y() + 5.0)
                      << QPointF(marker.x() + 6.0, marker.y() + 5.0);
             painter.drawPolygon(triangle);
+        } else if (snap->type == arz::cad::SnapType::Center) {
+            painter.drawEllipse(marker, 5.0, 5.0);
+        } else {
+            QPolygonF diamond;
+            diamond << QPointF(marker.x(), marker.y() - 6.0)
+                    << QPointF(marker.x() + 6.0, marker.y())
+                    << QPointF(marker.x(), marker.y() + 6.0)
+                    << QPointF(marker.x() - 6.0, marker.y());
+            painter.drawPolygon(diamond);
         }
     }
 

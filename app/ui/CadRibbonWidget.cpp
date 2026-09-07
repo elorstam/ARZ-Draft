@@ -279,6 +279,9 @@ CadRibbonWidget::CadRibbonWidget(
     setFixedHeight(187);
 
     actions.lineAction->setIcon(cadIcon(ToolGlyph::Line));
+    actions.polylineAction->setIcon(cadIcon(ToolGlyph::Polyline));
+    actions.circleAction->setIcon(cadIcon(ToolGlyph::Circle));
+    actions.arcAction->setIcon(cadIcon(ToolGlyph::Arc));
     actions.undoAction->setIcon(style()->standardIcon(QStyle::SP_ArrowBack));
     actions.redoAction->setIcon(style()->standardIcon(QStyle::SP_ArrowForward));
 
@@ -406,9 +409,9 @@ CadRibbonWidget::CadRibbonWidget(
         true
     ));
     drawLayout->addWidget(verticalTools({
-        placeholderButton(QStringLiteral("Polyline"), ToolGlyph::Polyline, QStringLiteral("polylineToolButton")),
-        placeholderButton(QStringLiteral("Circle"), ToolGlyph::Circle, QStringLiteral("circleToolButton")),
-        placeholderButton(QStringLiteral("Arc"), ToolGlyph::Arc, QStringLiteral("arcToolButton"))
+        actionButton(actions.polylineAction, QStringLiteral("polylineToolButton")),
+        actionButton(actions.circleAction, QStringLiteral("circleToolButton")),
+        actionButton(actions.arcAction, QStringLiteral("arcToolButton"))
     }));
     homeLayout->addWidget(ribbonGroup(QStringLiteral("Draw"), drawContent, 186));
 

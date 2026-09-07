@@ -7,6 +7,9 @@ namespace arz::interaction {
 enum class EditorCommand {
     Unknown = 0,
     Line,
+    Polyline,
+    Circle,
+    Arc,
     Undo,
     Redo,
     Cancel

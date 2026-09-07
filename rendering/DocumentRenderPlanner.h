@@ -4,6 +4,9 @@
 
 #include "geometry/primitives/BoundingBox2D.h"
 #include "rendering/LineRenderAdapter.h"
+#include "rendering/PolylineRenderAdapter.h"
+#include "rendering/CircleRenderAdapter.h"
+#include "rendering/ArcRenderAdapter.h"
 
 namespace arz::core { class Document; }
 
@@ -22,6 +25,9 @@ public:
 
 private:
     LineRenderAdapter lineAdapter_;
+    PolylineRenderAdapter polylineAdapter_;
+    CircleRenderAdapter circleAdapter_;
+    ArcRenderAdapter arcAdapter_;
 };
 
 }

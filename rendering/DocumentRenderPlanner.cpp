@@ -28,7 +28,8 @@ void DocumentRenderPlanner::build(
     auto objectIds = document.objectIds();
     std::ranges::sort(objectIds);
     scene.prepare(objectIds.size());
-    const std::array<const IEntityRenderAdapter*, 1> adapters{&lineAdapter_};
+    const std::array<const IEntityRenderAdapter*, 4> adapters{
+        &lineAdapter_, &polylineAdapter_, &circleAdapter_, &arcAdapter_};
     for (const auto objectId : objectIds) {
         const auto* entity = dynamic_cast<const arz::cad::CadEntity*>(
             document.object(objectId));

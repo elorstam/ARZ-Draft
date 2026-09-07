@@ -3,11 +3,12 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "cad/layers/LayerId.h"
-#include "cad/selection/LineEntityPickRefiner.h"
+#include "cad/selection/CadEntityPickRefiner.h"
 #include "cad/selection/SelectionService.h"
-#include "cad/snapping/LineEntitySnapProvider.h"
+#include "cad/snapping/CadEntitySnapProvider.h"
 #include "cad/snapping/SnapService.h"
 #include "cad/spatial/LinearSpatialIndex2D.h"
 #include "core/document/Document.h"
@@ -19,6 +20,9 @@
 #include "interaction/overlays/OverlayState.h"
 #include "interaction/selection/SelectionSet.h"
 #include "interaction/tools/LineInputController.h"
+#include "interaction/tools/PolylineInputController.h"
+#include "interaction/tools/CircleInputController.h"
+#include "interaction/tools/ArcInputController.h"
 
 namespace arz::app {
 
@@ -28,6 +32,9 @@ class CadApplicationController final {
 public:
     CadApplicationController();
     void startLine() noexcept;
+    void startPolyline() noexcept;
+    void startCircle() noexcept;
+    void startArc() noexcept;
     void cancel() noexcept;
     void appendCommandCharacter(char character);
     void backspaceCommandBuffer() noexcept;
@@ -74,6 +81,11 @@ public:
     bool setCurrentLayerId(arz::cad::LayerId layerId) noexcept;
     [[nodiscard]] arz::interaction::LineInputState lineInputState() const noexcept;
     [[nodiscard]] std::optional<arz::geometry::Point2D> lineStartPoint() const noexcept;
+    [[nodiscard]] arz::interaction::PolylineInputState polylineInputState() const noexcept;
+    [[nodiscard]] const std::vector<arz::geometry::Point2D>& polylineVertices() const noexcept;
+    [[nodiscard]] arz::interaction::CircleInputState circleInputState() const noexcept;
+    [[nodiscard]] std::optional<arz::geometry::Point2D> circleCenter() const noexcept;
+    [[nodiscard]] arz::interaction::ArcInputState arcInputState() const noexcept;
     [[nodiscard]] std::string commandPrompt() const;
 
 private:
@@ -83,15 +95,21 @@ private:
     void synchronizeAfterModelChange();
     void updateOverlayText();
     [[nodiscard]] bool commitPaste(arz::geometry::Point2D insertionPoint);
+    [[nodiscard]] bool commitPolyline(bool closed);
+    [[nodiscard]] bool anyDrawingCommandActive() const noexcept;
+    void cancelDrawingCommands() noexcept;
 
     arz::core::Document document_;
     arz::core::TransactionHistory history_;
     arz::cad::LinearSpatialIndex2D spatialIndex_;
-    arz::cad::LineEntityPickRefiner pickRefiner_;
+    arz::cad::CadEntityPickRefiner pickRefiner_;
     arz::cad::SelectionService selectionService_;
-    arz::cad::LineEntitySnapProvider snapProvider_;
+    arz::cad::CadEntitySnapProvider snapProvider_;
     arz::cad::SnapService snapService_;
     arz::interaction::LineInputController lineInput_;
+    arz::interaction::PolylineInputController polylineInput_;
+    arz::interaction::CircleInputController circleInput_;
+    arz::interaction::ArcInputController arcInput_;
     arz::interaction::CommandRegistry commandRegistry_;
     arz::interaction::CommandInputState commandInput_;
     arz::interaction::SelectionSet selection_;
@@ -99,6 +117,7 @@ private:
     arz::interaction::DraftingSettings draftingSettings_;
     arz::interaction::OverlayState overlayState_;
     arz::cad::LayerId currentLayerId_{arz::cad::DefaultLayerId};
+    std::string activeOptionBuffer_;
 };
 
 }

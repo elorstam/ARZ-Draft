@@ -1,21 +1,30 @@
 #include "app/application/CadApplicationController.h"
 
 #include <array>
+#include <cctype>
+#include <cmath>
 #include <memory>
 #include <utility>
 #include <vector>
 
 #include "cad/commands/AddLineCommand.h"
-#include "cad/commands/AddLinesCommand.h"
+#include "cad/commands/AddPolylineCommand.h"
+#include "cad/commands/AddCircleCommand.h"
+#include "cad/commands/AddArcCommand.h"
+#include "cad/commands/AddCadEntitiesCommand.h"
 #include "cad/commands/DeleteEntitiesCommand.h"
 #include "cad/entities/CadEntity.h"
 #include "cad/spatial/SpatialIndexSynchronizer.h"
+#include "geometry/algorithms/Curve2D.h"
+#include "geometry/algorithms/Point2DOperations.h"
 
 namespace arz::app {
 
 namespace {
 constexpr std::array EnabledSnapTypes{arz::cad::SnapType::Endpoint,
-                                      arz::cad::SnapType::Midpoint};
+                                      arz::cad::SnapType::Midpoint,
+                                      arz::cad::SnapType::Center,
+                                      arz::cad::SnapType::Quadrant};
 }
 
 CadApplicationController::CadApplicationController()
@@ -27,22 +36,39 @@ CadApplicationController::CadApplicationController()
 void CadApplicationController::startLine() noexcept {
     if (const auto descriptor = commandRegistry_.resolve("LINE")) (void)invoke(*descriptor);
 }
+void CadApplicationController::startPolyline() noexcept {
+    if (const auto descriptor = commandRegistry_.resolve("PLINE")) (void)invoke(*descriptor);
+}
+void CadApplicationController::startCircle() noexcept {
+    if (const auto descriptor = commandRegistry_.resolve("CIRCLE")) (void)invoke(*descriptor);
+}
+void CadApplicationController::startArc() noexcept {
+    if (const auto descriptor = commandRegistry_.resolve("ARC")) (void)invoke(*descriptor);
+}
 void CadApplicationController::cancel() noexcept { (void)escape(); }
 
 void CadApplicationController::appendCommandCharacter(char character) {
-    if (lineInput_.state() == arz::interaction::LineInputState::Inactive) {
+    if (polylineInput_.state() != arz::interaction::PolylineInputState::Inactive) {
+        const char upper = static_cast<char>(std::toupper(static_cast<unsigned char>(character)));
+        if (upper >= 'A' && upper <= 'Z') activeOptionBuffer_.push_back(upper);
+        updateOverlayText();
+    } else if (!anyDrawingCommandActive()) {
         commandInput_.append(character);
         updateOverlayText();
     }
 }
 void CadApplicationController::backspaceCommandBuffer() noexcept {
-    if (lineInput_.state() == arz::interaction::LineInputState::Inactive) {
+    if (polylineInput_.state() != arz::interaction::PolylineInputState::Inactive
+        && !activeOptionBuffer_.empty()) {
+        activeOptionBuffer_.pop_back();
+        updateOverlayText();
+    } else if (!anyDrawingCommandActive()) {
         commandInput_.backspace();
         updateOverlayText();
     }
 }
 void CadApplicationController::setCommandBuffer(std::string text) {
-    if (lineInput_.state() == arz::interaction::LineInputState::Inactive) {
+    if (!anyDrawingCommandActive()) {
         commandInput_.setBuffer(std::move(text));
         updateOverlayText();
     }
@@ -57,8 +83,46 @@ bool CadApplicationController::confirmInput() {
     if (overlayState_.pastePlacement()) {
         return commitPaste(overlayState_.pastePlacement()->insertionPoint);
     }
+    if (polylineInput_.state() != arz::interaction::PolylineInputState::Inactive) {
+        const bool close = activeOptionBuffer_ == "C" || activeOptionBuffer_ == "CLOSE";
+        activeOptionBuffer_.clear();
+        if (close) return polylineInput_.canClose() && commitPolyline(true);
+        if (polylineInput_.canFinish()) return commitPolyline(false);
+        polylineInput_.cancel();
+        overlayState_.clearDrawingPolyline();
+        updateOverlayText();
+        return true;
+    }
+    if (circleInput_.state() == arz::interaction::CircleInputState::AwaitingRadiusPoint
+        && overlayState_.drawingCircle()) {
+        const auto preview = *overlayState_.drawingCircle();
+        auto command = std::make_unique<arz::cad::AddCircleCommand>(
+            document_, currentLayerId_, preview.center, preview.radius);
+        auto* view = command.get();
+        if (!history_.execute(std::move(command))) return false;
+        circleInput_.cancel(); overlayState_.clearDrawingCircle();
+        selection_.replace({view->objectId()}); synchronizeAfterModelChange(); return true;
+    }
+    if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingEnd
+        && overlayState_.drawingArc()) {
+        const auto preview = *overlayState_.drawingArc();
+        auto command = std::make_unique<arz::cad::AddArcCommand>(document_, currentLayerId_,
+            preview.center, preview.radius, preview.startAngle,
+            arz::geometry::normalizeAngle(preview.startAngle
+                + (preview.counterClockwise ? preview.sweepAngle : -preview.sweepAngle)),
+            preview.counterClockwise);
+        auto* view = command.get();
+        if (!history_.execute(std::move(command))) return false;
+        arcInput_.cancel(); overlayState_.clearDrawingArc();
+        selection_.replace({view->objectId()}); synchronizeAfterModelChange(); return true;
+    }
     if (lineInput_.state() != arz::interaction::LineInputState::Inactive) {
         lineInput_.cancel();
+        updateOverlayText();
+        return true;
+    }
+    if (anyDrawingCommandActive()) {
+        cancelDrawingCommands();
         updateOverlayText();
         return true;
     }
@@ -87,7 +151,11 @@ bool CadApplicationController::invokeCommandText(std::string_view text) {
     }
     return invoke(*descriptor);
 }
-bool CadApplicationController::rightClick() { return finishActiveInteraction(); }
+bool CadApplicationController::rightClick() {
+    if (polylineInput_.state() != arz::interaction::PolylineInputState::Inactive
+        && polylineInput_.canFinish()) return commitPolyline(false);
+    return finishActiveInteraction();
+}
 void CadApplicationController::selectPreviousSuggestion() noexcept {
     overlayState_.selectPreviousSuggestion();
 }
@@ -98,17 +166,48 @@ void CadApplicationController::selectNextSuggestion() noexcept {
 void CadApplicationController::updatePointer(arz::geometry::Point2D worldPoint,
                                              double worldTolerance) {
     if (overlayState_.selectionWindow()) overlayState_.updateSelectionWindow(worldPoint);
-    if (!overlayState_.pastePlacement()) return;
     if (const auto snap = snapCandidate(worldPoint, worldTolerance)) worldPoint = snap->point;
+    if (polylineInput_.state() == arz::interaction::PolylineInputState::AwaitingNextPoint) {
+        auto vertices = polylineInput_.vertices();
+        vertices.push_back(worldPoint);
+        overlayState_.setDrawingPolyline({std::move(vertices), false});
+    }
+    if (circleInput_.state() == arz::interaction::CircleInputState::AwaitingRadiusPoint) {
+        overlayState_.setDrawingCircle({*circleInput_.center(),
+            arz::geometry::distance(*circleInput_.center(), worldPoint)});
+    }
+    if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingEnd) {
+        if (const auto arc = arcInput_.preview(worldPoint)) {
+            overlayState_.setDrawingArc({arc->center, arc->radius, arc->startAngle,
+                arz::geometry::directedAngleSweep(arc->startAngle, arc->endAngle,
+                                                   arc->counterClockwise),
+                arc->counterClockwise});
+        } else overlayState_.clearDrawingArc();
+    }
+    if (!overlayState_.pastePlacement()) return;
     const auto base = clipboard_.basePoint();
     const arz::geometry::Point2D delta{worldPoint.x - base.x, worldPoint.y - base.y};
-    arz::interaction::PastePlacementOverlay placement{base, worldPoint, {}};
+    arz::interaction::PastePlacementOverlay placement;
+    placement.basePoint = base;
+    placement.insertionPoint = worldPoint;
     for (const auto& source : clipboard_.lines()) {
         placement.lines.push_back({
             {source.start.x + delta.x, source.start.y + delta.y},
             {source.end.x + delta.x, source.end.y + delta.y}
         });
     }
+    for (const auto& source : clipboard_.polylines()) {
+        auto vertices = source.vertices;
+        for (auto& point : vertices) { point.x += delta.x; point.y += delta.y; }
+        placement.polylines.push_back({std::move(vertices), source.closed});
+    }
+    for (const auto& source : clipboard_.circles())
+        placement.circles.push_back({{source.center.x + delta.x, source.center.y + delta.y}, source.radius});
+    for (const auto& source : clipboard_.arcs())
+        placement.arcs.push_back({{source.center.x + delta.x, source.center.y + delta.y},
+            source.radius, source.startAngle,
+            arz::geometry::directedAngleSweep(source.startAngle, source.endAngle, source.counterClockwise),
+            source.counterClockwise});
     overlayState_.setPastePlacement(std::move(placement));
 }
 
@@ -119,6 +218,8 @@ bool CadApplicationController::finishActiveInteraction() {
         overlayState_.clearPastePlacement();
     } else if (lineInput_.state() != arz::interaction::LineInputState::Inactive) {
         lineInput_.cancel();
+    } else if (anyDrawingCommandActive()) {
+        cancelDrawingCommands();
     } else {
         return false;
     }
@@ -131,9 +232,19 @@ bool CadApplicationController::invoke(const arz::interaction::CommandDescriptor&
     switch (descriptor.command) {
     case arz::interaction::CadCommand::Line:
         overlayState_.clearPastePlacement();
+        cancelDrawingCommands();
         lineInput_.activate();
         succeeded = true;
         break;
+    case arz::interaction::CadCommand::Polyline:
+        overlayState_.clearPastePlacement(); cancelDrawingCommands();
+        polylineInput_.activate(); succeeded = true; break;
+    case arz::interaction::CadCommand::Circle:
+        overlayState_.clearPastePlacement(); cancelDrawingCommands();
+        circleInput_.activate(); succeeded = true; break;
+    case arz::interaction::CadCommand::Arc:
+        overlayState_.clearPastePlacement(); cancelDrawingCommands();
+        arcInput_.activate(); succeeded = true; break;
     case arz::interaction::CadCommand::Undo: succeeded = undo(); break;
     case arz::interaction::CadCommand::Redo: succeeded = redo(); break;
     case arz::interaction::CadCommand::Cancel: succeeded = escape(); break;
@@ -167,6 +278,47 @@ CanvasAction CadApplicationController::canvasClick(arz::geometry::Point2D worldP
             selection_.clear();
             return CanvasAction::None;
         }
+        return CanvasAction::EntityCreated;
+    }
+    if (polylineInput_.state() != arz::interaction::PolylineInputState::Inactive) {
+        if (const auto snap = snapCandidate(worldPoint, worldTolerance)) worldPoint = snap->point;
+        (void)polylineInput_.acceptPoint(worldPoint);
+        overlayState_.setDrawingPolyline({polylineInput_.vertices(), false});
+        updateOverlayText();
+        return CanvasAction::FirstLinePointAccepted;
+    }
+    if (circleInput_.state() != arz::interaction::CircleInputState::Inactive) {
+        if (const auto snap = snapCandidate(worldPoint, worldTolerance)) worldPoint = snap->point;
+        const auto center = circleInput_.center();
+        const auto radius = circleInput_.acceptPoint(worldPoint);
+        if (!radius) {
+            updateOverlayText();
+            return CanvasAction::FirstLinePointAccepted;
+        }
+        overlayState_.clearDrawingCircle();
+        auto command = std::make_unique<arz::cad::AddCircleCommand>(
+            document_, currentLayerId_, *center, *radius);
+        auto* view = command.get();
+        if (!history_.execute(std::move(command))) return CanvasAction::None;
+        selection_.replace({view->objectId()});
+        synchronizeAfterModelChange();
+        return CanvasAction::EntityCreated;
+    }
+    if (arcInput_.state() != arz::interaction::ArcInputState::Inactive) {
+        if (const auto snap = snapCandidate(worldPoint, worldTolerance)) worldPoint = snap->point;
+        const auto arc = arcInput_.acceptPoint(worldPoint);
+        if (!arc) {
+            updateOverlayText();
+            return CanvasAction::FirstLinePointAccepted;
+        }
+        overlayState_.clearDrawingArc();
+        auto command = std::make_unique<arz::cad::AddArcCommand>(document_, currentLayerId_,
+            arc->center, arc->radius, arc->startAngle, arc->endAngle,
+            arc->counterClockwise);
+        auto* view = command.get();
+        if (!history_.execute(std::move(command))) return CanvasAction::None;
+        selection_.replace({view->objectId()});
+        synchronizeAfterModelChange();
         return CanvasAction::EntityCreated;
     }
 
@@ -210,15 +362,14 @@ bool CadApplicationController::finishSelectionWindow(bool removalMode) {
 
 std::optional<arz::cad::SnapResult> CadApplicationController::snapCandidate(
     arz::geometry::Point2D worldPoint, double worldTolerance) const {
-    if ((lineInput_.state() == arz::interaction::LineInputState::Inactive
-         && !overlayState_.pastePlacement())
+    if ((!anyDrawingCommandActive() && !overlayState_.pastePlacement())
         || !draftingSettings_.enabled(arz::interaction::DraftingToggle::ObjectSnap))
         return std::nullopt;
     return snapService_.bestSnap(worldPoint, worldTolerance, EnabledSnapTypes);
 }
 
 bool CadApplicationController::undo() {
-    lineInput_.cancel();
+    cancelDrawingCommands();
     overlayState_.clearPastePlacement();
     overlayState_.clearSelectionWindow();
     if (!history_.undo()) return false;
@@ -231,7 +382,7 @@ bool CadApplicationController::undo() {
     return true;
 }
 bool CadApplicationController::redo() {
-    lineInput_.cancel();
+    cancelDrawingCommands();
     overlayState_.clearPastePlacement();
     overlayState_.clearSelectionWindow();
     if (!history_.redo()) return false;
@@ -257,13 +408,24 @@ bool CadApplicationController::copySelection() {
 bool CadApplicationController::cutSelection() { return copySelection() && deleteSelection(); }
 bool CadApplicationController::paste() {
     if (clipboard_.empty()) return false;
-    lineInput_.cancel();
+    cancelDrawingCommands();
     commandInput_.clearBuffer();
     overlayState_.clearSelectionWindow();
     const auto base = clipboard_.basePoint();
-    arz::interaction::PastePlacementOverlay placement{base, base, {}};
+    arz::interaction::PastePlacementOverlay placement;
+    placement.basePoint = base;
+    placement.insertionPoint = base;
     for (const auto& source : clipboard_.lines())
         placement.lines.push_back({source.start, source.end});
+    for (const auto& source : clipboard_.polylines())
+        placement.polylines.push_back({source.vertices, source.closed});
+    for (const auto& source : clipboard_.circles())
+        placement.circles.push_back({source.center, source.radius});
+    for (const auto& source : clipboard_.arcs())
+        placement.arcs.push_back({source.center, source.radius, source.startAngle,
+            arz::geometry::directedAngleSweep(source.startAngle, source.endAngle,
+                                               source.counterClockwise),
+            source.counterClockwise});
     overlayState_.setPastePlacement(std::move(placement));
     updateOverlayText();
     return true;
@@ -273,13 +435,28 @@ bool CadApplicationController::commitPaste(arz::geometry::Point2D insertionPoint
     if (clipboard_.empty() || !overlayState_.pastePlacement()) return false;
     const auto base = clipboard_.basePoint();
     const arz::geometry::Point2D delta{insertionPoint.x - base.x, insertionPoint.y - base.y};
-    std::vector<arz::cad::LineCreationData> lines;
+    std::vector<arz::cad::CadEntityCreationData> entities;
     for (const auto& source : clipboard_.lines()) {
-        lines.push_back({source.layerId,
+        entities.emplace_back(arz::cad::LineCreationData{source.layerId,
             {source.start.x + delta.x, source.start.y + delta.y},
             {source.end.x + delta.x, source.end.y + delta.y}, source.graphics});
     }
-    auto command = std::make_unique<arz::cad::AddLinesCommand>(document_, std::move(lines));
+    for (const auto& source : clipboard_.polylines()) {
+        auto vertices = source.vertices;
+        for (auto& point : vertices) { point.x += delta.x; point.y += delta.y; }
+        entities.emplace_back(arz::cad::PolylineCreationData{
+            source.layerId, std::move(vertices), source.closed, source.graphics});
+    }
+    for (const auto& source : clipboard_.circles())
+        entities.emplace_back(arz::cad::CircleCreationData{source.layerId,
+            {source.center.x + delta.x, source.center.y + delta.y},
+            source.radius, source.graphics});
+    for (const auto& source : clipboard_.arcs())
+        entities.emplace_back(arz::cad::ArcCreationData{source.layerId,
+            {source.center.x + delta.x, source.center.y + delta.y}, source.radius,
+            source.startAngle, source.endAngle, source.counterClockwise, source.graphics});
+    auto command = std::make_unique<arz::cad::AddCadEntitiesCommand>(
+        document_, std::move(entities));
     auto* view = command.get();
     if (!history_.execute(std::move(command))) return false;
     selection_.replace(view->objectIds());
@@ -325,12 +502,24 @@ bool CadApplicationController::setCurrentLayerId(arz::cad::LayerId layerId) noex
 }
 arz::interaction::LineInputState CadApplicationController::lineInputState() const noexcept { return lineInput_.state(); }
 std::optional<arz::geometry::Point2D> CadApplicationController::lineStartPoint() const noexcept { return lineInput_.firstPoint(); }
+arz::interaction::PolylineInputState CadApplicationController::polylineInputState() const noexcept { return polylineInput_.state(); }
+const std::vector<arz::geometry::Point2D>& CadApplicationController::polylineVertices() const noexcept { return polylineInput_.vertices(); }
+arz::interaction::CircleInputState CadApplicationController::circleInputState() const noexcept { return circleInput_.state(); }
+std::optional<arz::geometry::Point2D> CadApplicationController::circleCenter() const noexcept { return circleInput_.center(); }
+arz::interaction::ArcInputState CadApplicationController::arcInputState() const noexcept { return arcInput_.state(); }
 std::string CadApplicationController::commandPrompt() const {
     using arz::interaction::LineInputState;
     if (overlayState_.pastePlacement()) return "PASTE: Specify insertion point";
     if (overlayState_.selectionWindow()) return "Specify opposite corner";
     if (lineInput_.state() == LineInputState::AwaitingFirstPoint) return "LINE: Specify first point";
     if (lineInput_.state() == LineInputState::AwaitingSecondPoint) return "LINE: Specify next point";
+    if (polylineInput_.state() == arz::interaction::PolylineInputState::AwaitingStartPoint) return "PLINE: Specify start point";
+    if (polylineInput_.state() == arz::interaction::PolylineInputState::AwaitingNextPoint) return "PLINE: Specify next point or [Close]";
+    if (circleInput_.state() == arz::interaction::CircleInputState::AwaitingCenter) return "CIRCLE: Specify center point";
+    if (circleInput_.state() == arz::interaction::CircleInputState::AwaitingRadiusPoint) return "CIRCLE: Specify radius point";
+    if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingStart) return "ARC: Specify start point";
+    if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingSecond) return "ARC: Specify second point";
+    if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingEnd) return "ARC: Specify end point";
     return "Command:";
 }
 bool CadApplicationController::rebuildSpatialIndex() {
@@ -355,7 +544,47 @@ void CadApplicationController::updateOverlayText() {
     else if (overlayState_.selectionWindow()) overlayState_.setDynamicText("Specify opposite corner");
     else if (lineInput_.state() == LineInputState::AwaitingFirstPoint) overlayState_.setDynamicText("Specify first point");
     else if (lineInput_.state() == LineInputState::AwaitingSecondPoint) overlayState_.setDynamicText("Specify next point");
+    else if (polylineInput_.state() == arz::interaction::PolylineInputState::AwaitingStartPoint) overlayState_.setDynamicText("Specify start point");
+    else if (polylineInput_.state() == arz::interaction::PolylineInputState::AwaitingNextPoint) overlayState_.setDynamicText(activeOptionBuffer_.empty() ? "Specify next point or [Close]" : activeOptionBuffer_);
+    else if (circleInput_.state() == arz::interaction::CircleInputState::AwaitingCenter) overlayState_.setDynamicText("Specify center point");
+    else if (circleInput_.state() == arz::interaction::CircleInputState::AwaitingRadiusPoint) overlayState_.setDynamicText("Specify radius point");
+    else if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingStart) overlayState_.setDynamicText("Specify start point");
+    else if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingSecond) overlayState_.setDynamicText("Specify second point");
+    else if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingEnd) overlayState_.setDynamicText("Specify end point");
     else overlayState_.setDynamicText({});
+}
+
+bool CadApplicationController::commitPolyline(bool closed) {
+    if ((!closed && !polylineInput_.canFinish()) || (closed && !polylineInput_.canClose()))
+        return false;
+    auto command = std::make_unique<arz::cad::AddPolylineCommand>(
+        document_, currentLayerId_, polylineInput_.vertices(), closed);
+    auto* view = command.get();
+    if (!history_.execute(std::move(command))) return false;
+    polylineInput_.cancel();
+    activeOptionBuffer_.clear();
+    overlayState_.clearDrawingPolyline();
+    selection_.replace({view->objectId()});
+    synchronizeAfterModelChange();
+    return true;
+}
+
+bool CadApplicationController::anyDrawingCommandActive() const noexcept {
+    return lineInput_.state() != arz::interaction::LineInputState::Inactive
+        || polylineInput_.state() != arz::interaction::PolylineInputState::Inactive
+        || circleInput_.state() != arz::interaction::CircleInputState::Inactive
+        || arcInput_.state() != arz::interaction::ArcInputState::Inactive;
+}
+
+void CadApplicationController::cancelDrawingCommands() noexcept {
+    lineInput_.cancel();
+    polylineInput_.cancel();
+    circleInput_.cancel();
+    arcInput_.cancel();
+    activeOptionBuffer_.clear();
+    overlayState_.clearDrawingPolyline();
+    overlayState_.clearDrawingCircle();
+    overlayState_.clearDrawingArc();
 }
 
 }

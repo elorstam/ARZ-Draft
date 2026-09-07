@@ -28,12 +28,18 @@ int main(int argc, char* argv[]) {
 
     QAction exitAction(QStringLiteral("Exit"), &application);
     QAction lineAction(QStringLiteral("Line"), &application);
+    QAction polylineAction(QStringLiteral("Polyline"), &application);
+    QAction circleAction(QStringLiteral("Circle"), &application);
+    QAction arcAction(QStringLiteral("Arc"), &application);
     QAction undoAction(QStringLiteral("Undo"), &application);
     QAction redoAction(QStringLiteral("Redo"), &application);
 
     arz::app::CadRibbonWidget ribbon({
         &exitAction,
         &lineAction,
+        &polylineAction,
+        &circleAction,
+        &arcAction,
         &undoAction,
         &redoAction
     });
@@ -62,8 +68,17 @@ int main(int argc, char* argv[]) {
     passed &= expect(lineButton != nullptr && lineButton->isEnabled(), "Line tool remains enabled");
     passed &= expect(lineButton != nullptr && lineButton->defaultAction() == &lineAction, "Line tool uses the functional action");
 
+    for (const auto& [toolName, action] : {
+        std::pair{"polylineToolButton", &polylineAction},
+        std::pair{"circleToolButton", &circleAction},
+        std::pair{"arcToolButton", &arcAction}
+    }) {
+        const auto* button = ribbon.findChild<QToolButton*>(QString::fromLatin1(toolName));
+        passed &= expect(button != nullptr && button->isEnabled(), std::string("Drawing tool is enabled: ") + toolName);
+        passed &= expect(button != nullptr && button->defaultAction() == action, std::string("Drawing tool uses its action: ") + toolName);
+    }
+
     for (const auto* toolName : {
-        "polylineToolButton", "circleToolButton", "arcToolButton",
         "moveToolButton", "copyToolButton", "rotateToolButton",
         "mirrorToolButton", "trimToolButton", "filletToolButton",
         "stretchToolButton"

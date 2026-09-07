@@ -88,7 +88,7 @@ SelectionService::crossingWindow(
         );
 
         if (entity != nullptr
-            && entity->boundingBox().intersects(window)) {
+            && pickRefiner_.intersects(*entity, window)) {
             selected.insert(objectId);
         }
     }
@@ -110,7 +110,7 @@ SelectionService::containedWindow(
         );
 
         if (entity != nullptr
-            && window.contains(entity->boundingBox())) {
+            && pickRefiner_.contained(*entity, window)) {
             selected.insert(objectId);
         }
     }

@@ -24,12 +24,20 @@ add_library(arz_core STATIC
     geometry/primitives/Point2D.cpp
     geometry/tolerance/GeometryTolerance.cpp
     geometry/algorithms/Distance2D.cpp
+    geometry/algorithms/Curve2D.cpp
 
     cad/entities/CadEntity.cpp
     cad/entities/LineEntity.cpp
+    cad/entities/PolylineEntity.cpp
+    cad/entities/CircleEntity.cpp
+    cad/entities/ArcEntity.cpp
     cad/entities/GraphicsPropertyResolver.cpp
 
     cad/commands/AddLineCommand.cpp
+    cad/commands/AddPolylineCommand.cpp
+    cad/commands/AddCircleCommand.cpp
+    cad/commands/AddArcCommand.cpp
+    cad/commands/AddCadEntitiesCommand.cpp
     cad/commands/AddLinesCommand.cpp
     cad/commands/DeleteEntityCommand.cpp
     cad/commands/DeleteEntitiesCommand.cpp
@@ -39,9 +47,11 @@ add_library(arz_core STATIC
     cad/spatial/SpatialIndexSynchronizer.cpp
 
     cad/selection/LineEntityPickRefiner.cpp
+    cad/selection/CadEntityPickRefiner.cpp
     cad/selection/SelectionService.cpp
 
     cad/snapping/LineEntitySnapProvider.cpp
+    cad/snapping/CadEntitySnapProvider.cpp
     cad/snapping/SnapService.cpp
 
     cad/layers/Layer.cpp
@@ -58,9 +68,15 @@ add_library(arz_application STATIC
     interaction/drafting/DraftingSettings.cpp
     interaction/overlays/OverlayState.cpp
     interaction/tools/LineInputController.cpp
+    interaction/tools/PolylineInputController.cpp
+    interaction/tools/CircleInputController.cpp
+    interaction/tools/ArcInputController.cpp
     rendering/Viewport2D.cpp
     rendering/ScreenLineWeightPolicy.cpp
     rendering/LineRenderAdapter.cpp
+    rendering/PolylineRenderAdapter.cpp
+    rendering/CircleRenderAdapter.cpp
+    rendering/ArcRenderAdapter.cpp
     rendering/DocumentRenderPlanner.cpp
 )
 
@@ -239,6 +255,12 @@ add_executable(arz_rendering_foundation_tests
 )
 target_link_libraries(arz_rendering_foundation_tests PRIVATE arz_application)
 add_test(NAME rendering_foundation_tests COMMAND arz_rendering_foundation_tests)
+
+add_executable(arz_phase_1_2_tests
+    tests/phase_1_2_tests.cpp
+)
+target_link_libraries(arz_phase_1_2_tests PRIVATE arz_application)
+add_test(NAME phase_1_2_tests COMMAND arz_phase_1_2_tests)
 
 add_executable(arz_ui_shell_tests
     app/ui/CadRibbonWidget.cpp

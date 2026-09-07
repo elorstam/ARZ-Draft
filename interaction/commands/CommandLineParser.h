@@ -10,6 +10,7 @@ enum class EditorCommand {
     Polyline,
     Circle,
     Arc,
+    Copy,
     Undo,
     Redo,
     Cancel

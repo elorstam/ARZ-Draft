@@ -144,6 +144,8 @@ void QtOverlayRenderer::render(
                      QPointF(canvasSize.width(), cursorPosition.y()));
     painter.drawLine(QPointF(cursorPosition.x(), 0.0),
                      QPointF(cursorPosition.x(), canvasSize.height()));
+    painter.setPen(QPen(QColor(235, 240, 245, 220), 1.0));
+    painter.drawRect(QRectF(cursorPosition.x() - 4.0, cursorPosition.y() - 4.0, 8.0, 8.0));
 
     if (overlays.dynamicText().empty()) return;
     const QString text = QString::fromStdString(overlays.dynamicText());

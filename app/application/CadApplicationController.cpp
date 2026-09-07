@@ -46,6 +46,10 @@ void CadApplicationController::startCircle() noexcept {
 void CadApplicationController::startArc() noexcept {
     if (const auto descriptor = commandRegistry_.resolve("ARC")) (void)invoke(*descriptor);
 }
+bool CadApplicationController::startCopySelection() {
+    if (const auto descriptor = commandRegistry_.resolve("COPY")) return invoke(*descriptor);
+    return false;
+}
 void CadApplicationController::cancel() noexcept { (void)escape(); }
 
 void CadApplicationController::appendCommandCharacter(char character) {
@@ -80,6 +84,11 @@ bool CadApplicationController::confirmInput() {
         const auto text = overlayState_.selectedSuggestion().value_or(commandInput_.buffer());
         commandInput_.clearBuffer();
         return invokeCommandText(text);
+    }
+    if (copyInput_.state() == arz::interaction::CopyInputState::AwaitingDestination
+        && overlayState_.pastePlacement()) return commitCopy(overlayState_.pastePlacement()->insertionPoint);
+    if (copyInput_.state() == arz::interaction::CopyInputState::AwaitingBasePoint) {
+        copyInput_.cancel(); overlayState_.clearPastePlacement(); updateOverlayText(); return true;
     }
     if (overlayState_.pastePlacement()) {
         return commitPaste(overlayState_.pastePlacement()->insertionPoint);
@@ -182,36 +191,22 @@ void CadApplicationController::updatePointer(arz::geometry::Point2D worldPoint,
                 arc->counterClockwise, *arcInput_.second(), worldPoint});
         } else overlayState_.clearDrawingArc();
     }
-    if (!overlayState_.pastePlacement()) return;
-    const auto base = clipboard_.basePoint();
-    const arz::geometry::Point2D delta{worldPoint.x - base.x, worldPoint.y - base.y};
-    arz::interaction::PastePlacementOverlay placement;
-    placement.basePoint = base;
-    placement.insertionPoint = worldPoint;
-    for (const auto& source : clipboard_.lines()) {
-        placement.lines.push_back({
-            {source.start.x + delta.x, source.start.y + delta.y},
-            {source.end.x + delta.x, source.end.y + delta.y}
-        });
+    if (copyInput_.state() == arz::interaction::CopyInputState::AwaitingDestination
+        && copyInput_.basePoint()) {
+        updatePlacementOverlay(worldPoint, *copyInput_.basePoint());
+        updateOverlayText();
+        return;
     }
-    for (const auto& source : clipboard_.polylines()) {
-        auto vertices = source.vertices;
-        for (auto& point : vertices) { point.x += delta.x; point.y += delta.y; }
-        placement.polylines.push_back({std::move(vertices), source.closed});
-    }
-    for (const auto& source : clipboard_.circles())
-        placement.circles.push_back({{source.center.x + delta.x, source.center.y + delta.y}, source.radius});
-    for (const auto& source : clipboard_.arcs())
-        placement.arcs.push_back({{source.center.x + delta.x, source.center.y + delta.y},
-            source.radius, source.startAngle,
-            arz::geometry::directedAngleSweep(source.startAngle, source.endAngle, source.counterClockwise),
-            source.counterClockwise});
-    overlayState_.setPastePlacement(std::move(placement));
+    if (overlayState_.pastePlacement()) updatePlacementOverlay(worldPoint, clipboard_.basePoint());
+    updateOverlayText();
 }
 
 bool CadApplicationController::finishActiveInteraction() {
     if (overlayState_.selectionWindow()) {
         overlayState_.clearSelectionWindow();
+    } else if (copyInput_.state() != arz::interaction::CopyInputState::Inactive) {
+        copyInput_.cancel();
+        overlayState_.clearPastePlacement();
     } else if (overlayState_.pastePlacement()) {
         overlayState_.clearPastePlacement();
     } else if (lineInput_.state() != arz::interaction::LineInputState::Inactive) {
@@ -243,6 +238,12 @@ bool CadApplicationController::invoke(const arz::interaction::CommandDescriptor&
     case arz::interaction::CadCommand::Arc:
         overlayState_.clearPastePlacement(); cancelDrawingCommands();
         arcInput_.activate(); succeeded = true; break;
+    case arz::interaction::CadCommand::Copy:
+        if (!selection_.empty() && clipboard_.copy(document_, selection_.ids())) {
+            cancelDrawingCommands(); overlayState_.clearPastePlacement();
+            copyInput_.activate(); succeeded = true;
+        }
+        break;
     case arz::interaction::CadCommand::Undo: succeeded = undo(); break;
     case arz::interaction::CadCommand::Redo: succeeded = redo(); break;
     case arz::interaction::CadCommand::Cancel: succeeded = escape(); break;
@@ -256,6 +257,13 @@ bool CadApplicationController::invoke(const arz::interaction::CommandDescriptor&
 CanvasAction CadApplicationController::canvasClick(arz::geometry::Point2D worldPoint,
                                                     double worldTolerance,
                                                     bool shiftModifier) {
+    if (copyInput_.state() != arz::interaction::CopyInputState::Inactive) {
+        if (const auto snap = snapCandidate(worldPoint, worldTolerance)) worldPoint = snap->point;
+        if (copyInput_.state() == arz::interaction::CopyInputState::AwaitingBasePoint) {
+            copyInput_.acceptBasePoint(worldPoint); updateOverlayText(); return CanvasAction::FirstLinePointAccepted;
+        }
+        return commitCopy(worldPoint) ? CanvasAction::EntityCreated : CanvasAction::None;
+    }
     if (overlayState_.pastePlacement()) {
         if (const auto snap = snapCandidate(worldPoint, worldTolerance)) worldPoint = snap->point;
         return commitPaste(worldPoint) ? CanvasAction::EntityCreated : CanvasAction::None;
@@ -415,6 +423,19 @@ bool CadApplicationController::deleteSelection() {
 bool CadApplicationController::copySelection() {
     return clipboard_.copy(document_, selection_.ids());
 }
+bool CadApplicationController::commitCopy(arz::geometry::Point2D insertionPoint) {
+    if (clipboard_.empty() || !copyInput_.basePoint()) return false;
+    const auto base = *copyInput_.basePoint();
+    const arz::geometry::Point2D delta{insertionPoint.x - base.x, insertionPoint.y - base.y};
+    std::vector<arz::cad::CadEntityCreationData> entities;
+    for (const auto& source : clipboard_.lines()) entities.emplace_back(arz::cad::LineCreationData{source.layerId,{source.start.x+delta.x,source.start.y+delta.y},{source.end.x+delta.x,source.end.y+delta.y},source.graphics});
+    for (const auto& source : clipboard_.polylines()) { auto v=source.vertices; for(auto& p:v){p.x+=delta.x;p.y+=delta.y;} entities.emplace_back(arz::cad::PolylineCreationData{source.layerId,std::move(v),source.closed,source.graphics}); }
+    for (const auto& source : clipboard_.circles()) entities.emplace_back(arz::cad::CircleCreationData{source.layerId,{source.center.x+delta.x,source.center.y+delta.y},source.radius,source.graphics});
+    for (const auto& source : clipboard_.arcs()) entities.emplace_back(arz::cad::ArcCreationData{source.layerId,{source.center.x+delta.x,source.center.y+delta.y},source.radius,source.startAngle,source.endAngle,source.counterClockwise,source.graphics});
+    auto command=std::make_unique<arz::cad::AddCadEntitiesCommand>(document_,std::move(entities)); auto* view=command.get();
+    if (!history_.execute(std::move(command))) return false;
+    selection_.replace(view->objectIds()); copyInput_.cancel(); overlayState_.clearPastePlacement(); synchronizeAfterModelChange(); return true;
+}
 bool CadApplicationController::cutSelection() { return copySelection() && deleteSelection(); }
 bool CadApplicationController::paste() {
     if (clipboard_.empty()) return false;
@@ -512,6 +533,8 @@ bool CadApplicationController::setCurrentLayerId(arz::cad::LayerId layerId) noex
 }
 arz::interaction::LineInputState CadApplicationController::lineInputState() const noexcept { return lineInput_.state(); }
 std::optional<arz::geometry::Point2D> CadApplicationController::lineStartPoint() const noexcept { return lineInput_.firstPoint(); }
+arz::interaction::CopyInputState CadApplicationController::copyInputState() const noexcept { return copyInput_.state(); }
+std::optional<arz::geometry::Point2D> CadApplicationController::copyBasePoint() const noexcept { return copyInput_.basePoint(); }
 arz::interaction::PolylineInputState CadApplicationController::polylineInputState() const noexcept { return polylineInput_.state(); }
 const std::vector<arz::geometry::Point2D>& CadApplicationController::polylineVertices() const noexcept { return polylineInput_.vertices(); }
 arz::interaction::CircleInputState CadApplicationController::circleInputState() const noexcept { return circleInput_.state(); }
@@ -530,11 +553,13 @@ std::string CadApplicationController::commandPrompt() const {
     if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingStart) return "ARC: Specify start point";
     if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingSecond) return "ARC: Specify second point";
     if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingEnd) return "ARC: Specify end point";
+    if (copyInput_.state() == arz::interaction::CopyInputState::AwaitingBasePoint) return "COPY: Specify base point";
+    if (copyInput_.state() == arz::interaction::CopyInputState::AwaitingDestination) return "COPY: Specify second point";
     return "Command:";
 }
 
 bool CadApplicationController::pointAcquisitionActive() const noexcept {
-    return anyDrawingCommandActive();
+    return anyDrawingCommandActive() || copyInput_.state() != arz::interaction::CopyInputState::Inactive;
 }
 bool CadApplicationController::rebuildSpatialIndex() {
     return arz::cad::SpatialIndexSynchronizer::rebuild(document_, spatialIndex_);
@@ -555,6 +580,8 @@ void CadApplicationController::updateOverlayText() {
     if (!draftingSettings_.enabled(DraftingToggle::DynamicInput)) overlayState_.setDynamicText({});
     else if (!commandInput_.buffer().empty()) overlayState_.setDynamicText(commandInput_.buffer());
     else if (overlayState_.pastePlacement()) overlayState_.setDynamicText("Specify insertion point");
+    else if (copyInput_.state() == arz::interaction::CopyInputState::AwaitingBasePoint) overlayState_.setDynamicText("Specify base point");
+    else if (copyInput_.state() == arz::interaction::CopyInputState::AwaitingDestination) overlayState_.setDynamicText("Specify second point");
     else if (overlayState_.selectionWindow()) overlayState_.setDynamicText("Specify opposite corner");
     else if (lineInput_.state() == LineInputState::AwaitingFirstPoint) overlayState_.setDynamicText("Specify first point");
     else if (lineInput_.state() == LineInputState::AwaitingSecondPoint) overlayState_.setDynamicText("Specify next point");
@@ -603,10 +630,23 @@ void CadApplicationController::cancelDrawingCommands() noexcept {
     polylineInput_.cancel();
     circleInput_.cancel();
     arcInput_.cancel();
+    copyInput_.cancel();
     activeOptionBuffer_.clear();
     overlayState_.clearDrawingPolyline();
     overlayState_.clearDrawingCircle();
     overlayState_.clearDrawingArc();
+}
+
+void CadApplicationController::updatePlacementOverlay(arz::geometry::Point2D insertionPoint,
+                                                       arz::geometry::Point2D basePoint) {
+    const arz::geometry::Point2D delta{insertionPoint.x - basePoint.x, insertionPoint.y - basePoint.y};
+    arz::interaction::PastePlacementOverlay placement;
+    placement.basePoint = basePoint; placement.insertionPoint = insertionPoint;
+    for (const auto& source : clipboard_.lines()) placement.lines.push_back({{source.start.x+delta.x,source.start.y+delta.y},{source.end.x+delta.x,source.end.y+delta.y}});
+    for (const auto& source : clipboard_.polylines()) { auto v=source.vertices; for(auto& p:v){p.x+=delta.x;p.y+=delta.y;} placement.polylines.push_back({std::move(v),source.closed}); }
+    for (const auto& source : clipboard_.circles()) placement.circles.push_back({{source.center.x+delta.x,source.center.y+delta.y},source.radius});
+    for (const auto& source : clipboard_.arcs()) placement.arcs.push_back({{source.center.x+delta.x,source.center.y+delta.y},source.radius,source.startAngle,arz::geometry::directedAngleSweep(source.startAngle,source.endAngle,source.counterClockwise),source.counterClockwise});
+    overlayState_.setPastePlacement(std::move(placement));
 }
 
 }

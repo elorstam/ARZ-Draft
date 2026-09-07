@@ -390,7 +390,7 @@ void MainWindow::showCanvasContextMenu(QPointF position) {
         });
         auto* copySelection = menu.addAction(QStringLiteral("Copy Selection"));
         connect(copySelection, &QAction::triggered, this, [this] {
-            (void)controller_.copySelection(); refreshUi();
+            (void)controller_.startCopySelection(); canvas_->refreshInteractionPointer(); canvas_->update(); refreshUi();
         });
         menu.addSeparator();
         auto* deselect = menu.addAction(QStringLiteral("Deselect All"));

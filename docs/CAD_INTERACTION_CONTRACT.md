@@ -136,6 +136,12 @@ Right-click or Escape exits repeated paste without committing the current previe
 Enter and Space retain their paste placement meaning: they commit once at the
 current resolved insertion point and leave paste active.
 
+Clipboard Copy (`Ctrl+C` or Clipboard > Copy) only stores the immutable snapshot;
+it never starts placement. CAD COPY (`COPY`, `CO`, or Selection > Copy Selection)
+is a separate interactive command: it asks for a base point, previews displacement
+to the second point, and commits one new-ID copied set in one undoable transaction.
+Escape cancels it without mutation; originals remain selected and unchanged.
+
 ## Canvas Right-Click Policy
 
 The canvas routes right-click through one context-sensitive policy. While a
@@ -158,10 +164,9 @@ Actual text editors take priority. When focus is in `QLineEdit`, `QTextEdit`,
 shortcuts are not intercepted. Clicking the canvas restores drafting focus.
 
 Right-click policy is deterministic: while an interactive CAD command is active,
-right-click finishes/exits the active command without committing pending geometry.
-This clears LINE point state, paste preview, selection-window state, and derived
-snap feedback without creating a history entry. While idle, right-click is a safe
-no-op reserved for a future context menu; it does not repeat the last command.
+right-click is consumed by that command's shared finish/confirm contract. While
+idle, it opens the native context menu; selection actions route through controller
+commands, including interactive CAD COPY rather than clipboard Copy.
 Right drag is reserved and does not create selection windows.
 
 ## Drafting Settings
@@ -182,9 +187,13 @@ claim geometric behavior that has not been implemented.
 ## Transient Overlays
 
 Dynamic text, registry suggestions, command prompts, selection/crossing rectangles,
-paste previews, snap markers, crosshair, LINE preview, and future tracking graphics are interaction or
+paste/COPY previews, snap markers, and future tracking graphics are interaction or
 view state. They are not document objects, receive no `ObjectId`, cannot be selected
 or saved, and do not affect persistent bounds.
+
+The drafting canvas renders a light professional crosshair and centered square
+pickbox as a transient overlay while hiding the native arrow cursor. Snap markers
+remain visually distinct from the pickbox and dynamic input is cursor-relative.
 
 Window selection is blue and solid; crossing selection is green and dashed.
 Middle-button drag pans, wheel input zooms about the cursor, and middle-button

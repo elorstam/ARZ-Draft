@@ -13,6 +13,7 @@ enum class CadCommand {
     Polyline,
     Circle,
     Arc,
+    Copy,
     Undo,
     Redo,
     Cancel

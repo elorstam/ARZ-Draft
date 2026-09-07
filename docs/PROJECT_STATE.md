@@ -99,6 +99,8 @@ Phase 1.2 — Core 2D Drawing Entities
 - Shared transient snap candidates for active PLINE vertices and segment midpoints
 - True three-state ARC with live mathematical/reference preview and safe collinear handling
 - Native idle/selection canvas context menu with repeat, history, clipboard, erase and properties routing
+- Distinct interactive COPY/CO base-point and destination workflow separate from Ctrl+C clipboard copy
+- CAD crosshair and centered pickbox rendered as transient cursor overlay
 
 ## Tests
 Passing:
@@ -120,7 +122,7 @@ Passing:
 Phases 1.0 and 1.0.1 are HUMAN ACCEPTED. Phase 1.2 adds PLINE, CIRCLE and
 three-point ARC across the command, transaction, rendering, selection, snapping,
 properties and clipboard boundaries, including transient PLINE self-snapping,
-mathematical ARC preview, and context-sensitive canvas menus. The complete Debug
+mathematical ARC reference preview, interactive COPY, crosshair/pickbox, and context-sensitive canvas menus. The complete Debug
 MSVC/Qt suite passes.
 Automated verification does not substitute for live human acceptance.
 

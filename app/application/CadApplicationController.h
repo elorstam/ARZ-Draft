@@ -23,6 +23,7 @@
 #include "interaction/tools/PolylineInputController.h"
 #include "interaction/tools/CircleInputController.h"
 #include "interaction/tools/ArcInputController.h"
+#include "interaction/tools/CopyInputController.h"
 
 namespace arz::app {
 
@@ -57,11 +58,14 @@ public:
     [[nodiscard]] std::optional<arz::cad::SnapResult> snapCandidate(
         arz::geometry::Point2D worldPoint, double worldTolerance) const;
     [[nodiscard]] bool pointAcquisitionActive() const noexcept;
+    [[nodiscard]] arz::interaction::CopyInputState copyInputState() const noexcept;
+    [[nodiscard]] std::optional<arz::geometry::Point2D> copyBasePoint() const noexcept;
 
     bool undo();
     bool redo();
     bool deleteSelection();
     bool copySelection();
+    bool startCopySelection();
     bool cutSelection();
     bool paste();
     [[nodiscard]] bool pastePlacementActive() const noexcept;
@@ -97,6 +101,9 @@ private:
     void updateOverlayText();
     [[nodiscard]] bool commitPaste(arz::geometry::Point2D insertionPoint);
     [[nodiscard]] bool commitPolyline(bool closed);
+    [[nodiscard]] bool commitCopy(arz::geometry::Point2D insertionPoint);
+    void updatePlacementOverlay(arz::geometry::Point2D insertionPoint,
+                                arz::geometry::Point2D basePoint);
     [[nodiscard]] bool anyDrawingCommandActive() const noexcept;
     void cancelDrawingCommands() noexcept;
 
@@ -111,6 +118,7 @@ private:
     arz::interaction::PolylineInputController polylineInput_;
     arz::interaction::CircleInputController circleInput_;
     arz::interaction::ArcInputController arcInput_;
+    arz::interaction::CopyInputController copyInput_;
     arz::interaction::CommandRegistry commandRegistry_;
     arz::interaction::CommandInputState commandInput_;
     arz::interaction::SelectionSet selection_;

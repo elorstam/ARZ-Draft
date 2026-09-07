@@ -12,6 +12,7 @@
 #include "cad/commands/AddCircleCommand.h"
 #include "cad/commands/AddPolylineCommand.h"
 #include "cad/entities/ArcEntity.h"
+#include "cad/entities/LineEntity.h"
 #include "cad/entities/CircleEntity.h"
 #include "cad/entities/PolylineEntity.h"
 #include "cad/selection/CadEntityPickRefiner.h"
@@ -205,17 +206,51 @@ bool testArcThreePointPreviewAndSafeInvalidState() {
         && controller.document().objectIds().size() == 1;
 }
 
+bool testInteractiveCopySelection() {
+    const auto fail = [](int) { return false; };
+    arz::app::CadApplicationController controller;
+    controller.startLine();
+    (void)controller.canvasClick({0, 0}, 0.01);
+    (void)controller.canvasClick({10, 0}, 0.01);
+    const auto sourceId = controller.selectedObjectId();
+    if (!sourceId || controller.document().objectIds().size() != 1 || !controller.selectAll()) return fail(1);
+    if (!controller.copySelection() || controller.copyInputState() != arz::interaction::CopyInputState::Inactive) return fail(2);
+    if (!controller.startCopySelection() || controller.copyInputState() != arz::interaction::CopyInputState::AwaitingBasePoint) return fail(3);
+    (void)controller.canvasClick({0, 0}, 0.5);
+    if (controller.copyInputState() != arz::interaction::CopyInputState::AwaitingDestination
+        || controller.document().objectIds().size() != 1) return fail(4);
+    for (int i = 0; i < 100; ++i) controller.updatePointer({20.0 + i * 0.1, 5.0}, 0.01);
+    if (!controller.overlayState().pastePlacement() || controller.document().objectIds().size() != 1) return fail(5);
+    if (controller.canvasClick({20, 5}, 0.01) != arz::app::CanvasAction::EntityCreated
+        || controller.document().objectIds().size() != 2) return fail(6);
+    const auto ids = controller.document().objectIds();
+    if (ids.size() != 2 || ids[0] == ids[1] || !controller.document().contains(sourceId)) return fail(7);
+    const auto* copied = dynamic_cast<const arz::cad::LineEntity*>(controller.document().object(ids.back()));
+    if (!copied || !near(copied->start().x, 20) || !near(copied->start().y, 5)
+        || !near(copied->end().x, 30) || !near(copied->end().y, 5)) return fail(8);
+    if (!controller.undo() || controller.document().objectIds().size() != 1
+        || !controller.redo() || controller.document().objectIds().size() != 2) return fail(9);
+    (void)controller.selectAll();
+    if (!controller.startCopySelection()) return fail(10);
+    if (!controller.escape()) return fail(11);
+    if (controller.document().objectIds().size() != 2) return fail(12);
+    return controller.copyInputState() == arz::interaction::CopyInputState::Inactive;
+}
+
 bool testAliasesParserAndRenderAdapters() {
     arz::interaction::CommandRegistry registry;
     if (!registry.resolve("PL") || registry.resolve("PL")->canonicalName != "PLINE"
         || !registry.resolve("C") || registry.resolve("C")->canonicalName != "CIRCLE"
         || !registry.resolve("A") || registry.resolve("A")->canonicalName != "ARC"
+        || !registry.resolve("CO") || registry.resolve("CO")->canonicalName != "COPY"
         || arz::interaction::CommandLineParser::parse("pline")
             != arz::interaction::EditorCommand::Polyline
         || arz::interaction::CommandLineParser::parse("c")
             != arz::interaction::EditorCommand::Circle
         || arz::interaction::CommandLineParser::parse("a")
-            != arz::interaction::EditorCommand::Arc) return false;
+            != arz::interaction::EditorCommand::Arc
+        || arz::interaction::CommandLineParser::parse("co")
+            != arz::interaction::EditorCommand::Copy) return false;
 
     arz::core::Document document;
     if (!document.addObject(std::make_unique<arz::cad::PolylineEntity>(
@@ -255,6 +290,7 @@ int main() {
     run("InteractiveCommandsPreviewsAndClipboard", testInteractiveCommandsPreviewsAndClipboard());
     run("TransientPolylineSnapping", testTransientPolylineSnapping());
     run("ArcThreePointPreviewAndSafeInvalidState", testArcThreePointPreviewAndSafeInvalidState());
+    run("InteractiveCopySelection", testInteractiveCopySelection());
     run("AliasesParserAndRenderAdapters", testAliasesParserAndRenderAdapters());
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

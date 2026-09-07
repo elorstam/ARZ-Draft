@@ -22,7 +22,7 @@ CadCanvasWidget::CadCanvasWidget(
       controller_(controller) {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
-    setCursor(Qt::CrossCursor);
+    setCursor(Qt::BlankCursor);
     setMinimumSize(480, 320);
 }
 
@@ -122,7 +122,7 @@ void CadCanvasWidget::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::MiddleButton) {
         panning_ = true;
         lastPanPosition_ = event->position();
-        setCursor(Qt::ClosedHandCursor);
+        setCursor(Qt::BlankCursor);
         return;
     }
 
@@ -153,7 +153,7 @@ void CadCanvasWidget::mousePressEvent(QMouseEvent* event) {
 void CadCanvasWidget::mouseReleaseEvent(QMouseEvent* event) {
     if (event->button() == Qt::MiddleButton) {
         panning_ = false;
-        setCursor(Qt::CrossCursor);
+        setCursor(Qt::BlankCursor);
         return;
     }
 }

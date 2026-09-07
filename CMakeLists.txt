@@ -71,6 +71,7 @@ add_library(arz_application STATIC
     interaction/tools/PolylineInputController.cpp
     interaction/tools/CircleInputController.cpp
     interaction/tools/ArcInputController.cpp
+    interaction/tools/CopyInputController.cpp
     rendering/Viewport2D.cpp
     rendering/ScreenLineWeightPolicy.cpp
     rendering/LineRenderAdapter.cpp

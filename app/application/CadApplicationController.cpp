@@ -274,7 +274,6 @@ bool CadApplicationController::commitPaste(arz::geometry::Point2D insertionPoint
     auto* view = command.get();
     if (!history_.execute(std::move(command))) return false;
     selection_.replace(view->objectIds());
-    overlayState_.clearPastePlacement();
     synchronizeAfterModelChange();
     return true;
 }

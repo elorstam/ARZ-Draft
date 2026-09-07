@@ -36,11 +36,12 @@ Enter and Space use this state order:
 3. Otherwise, the last successfully invoked repeatable command starts again.
 4. With no applicable state, the input is a safe no-op.
 
-An active command owns the meaning of confirmation at each step. LINE is
-continuous: its first point enters continuation mode, every subsequent point
-creates a separate `LineEntity`, and the accepted endpoint becomes the next
-segment start. Enter, Space, or right-click finishes active LINE without creating
-a segment; only a later idle Enter/Space repeats LINE.
+An active command owns the meaning of confirmation at each step. LINE is a
+repeating two-point command: a first and second point create one independent
+`LineEntity`, then active LINE returns to `Specify first point`. It never carries
+the completed line's endpoint into the next line. Enter, Space, or right-click
+finishes active LINE without creating a line; only a later idle Enter/Space
+repeats LINE.
 
 ## Cancellation
 
@@ -94,17 +95,18 @@ point at the copied set's minimum bounds corner—never entity pointers. Copy do
 not mutate the document. Cut is copy followed by one undoable multi-delete
 transaction.
 
-Ctrl+V enters transient paste placement without creating document objects. Every
-pointer update computes `preview = immutable clipboard source + absolute placement
-delta`; preview data is never used as the next source. One click (or confirm at the
-current insertion point) constructs final values once and executes one
-`AddLinesCommand`. New IDs are assigned once. Undo removes exactly that pasted set
-and redo restores the same IDs. Escape discards the preview without mutation. The
+Ctrl+V enters transient repeated paste placement without creating document
+objects. Every pointer update computes `preview = immutable clipboard source +
+absolute placement delta`; preview data is never used as the next source. Each
+click (or confirm at the current insertion point) constructs one final copied set
+and executes one `AddLinesCommand`, then paste placement remains active for the
+next location. Every placement receives new IDs and is an independent undo entry.
+Escape discards the current preview and exits paste without another mutation. The
 stored base point is the copied geometry's minimum bounds corner and is ready for
 future COPYBASE support. Paste placement uses the shared endpoint/midpoint
-`SnapService` when Object Snap is enabled: both preview and commit use
-`resolved insertion point - clipboard base point`. With Object Snap disabled,
-the raw cursor world point is used.
+`SnapService` when Object Snap is enabled. Every preview and commit uses the
+resolved insertion point minus the clipboard base point. With Object Snap
+disabled, every placement uses the raw cursor world point.
 
 ## Shortcut and Focus Routing
 

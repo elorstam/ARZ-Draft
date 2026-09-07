@@ -83,8 +83,8 @@ Phase 1.1 — Rendering Foundation
 - Viewport visible-world-bounds calculation
 - Canvas free of entity-specific rendering and Zoom Extents branches
 - Reused render-scene storage for paint-loop efficiency
-- Continuous LINE sessions creating one independently undoable LineEntity per segment
-- Paste placement endpoint/midpoint object snap using immutable clipboard geometry
+- Repeating two-point LINE sessions creating independent, separately undoable LineEntity objects
+- Repeated endpoint/midpoint-snapped paste placement from one immutable clipboard snapshot
 
 ## Tests
 Passing:
@@ -103,10 +103,10 @@ Passing:
 
 ## Last Known Status
 Phases 1.0 and 1.0.1 are HUMAN ACCEPTED. Phase 1.1 live-review corrections for
-continuous LINE and object-snapped paste placement pass all automated tests in the
-Debug MSVC/Qt configuration. The normal application is launched at the end of the
-corrective run for renewed human acceptance; automated verification does not
-substitute for it.
+independent two-point LINE creation and repeated object-snapped paste placement
+pass all automated tests in the Debug MSVC/Qt configuration. The normal
+application is launched at the end of the corrective run for renewed human
+acceptance; automated verification does not substitute for it.
 
 ## Spatial Index Synchronization
 The spatial index is a derived service outside Document. Phase 0.9
@@ -133,10 +133,10 @@ Do not bypass command/transaction architecture.
 ## Phase 1.1 Acceptance Status
 
 AUTOMATED COMPLETE after the phase commit is pushed. HUMAN ACCEPTED remains
-pending until the user verifies continuous LINE, snapped paste placement,
-persistent lines, selection highlight, lineweight display, zoom/pan, transient
-overlays, undo/redo redraw, and absence of obvious flicker or rendering regressions
-in the normal application.
+pending until the user verifies repeating independent two-point LINE creation,
+repeated snapped paste placement from one invocation, persistent lines, selection
+highlight, lineweight display, zoom/pan, transient overlays, undo/redo redraw, and
+absence of obvious flicker or rendering regressions in the normal application.
 
 ## Locked UI Direction
 

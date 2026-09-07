@@ -40,6 +40,12 @@ struct TransientArc final {
     arz::geometry::Point2D endPoint{};
 };
 
+struct ArcReferenceOverlay final {
+    arz::geometry::Point2D startPoint{};
+    arz::geometry::Point2D secondPoint{};
+    arz::geometry::Point2D provisionalEndPoint{};
+};
+
 struct PastePlacementOverlay final {
     arz::geometry::Point2D basePoint{};
     arz::geometry::Point2D insertionPoint{};
@@ -75,6 +81,9 @@ public:
     void setDrawingArc(TransientArc value);
     void clearDrawingArc() noexcept;
     [[nodiscard]] const std::optional<TransientArc>& drawingArc() const noexcept;
+    void setArcReference(ArcReferenceOverlay value);
+    void clearArcReference() noexcept;
+    [[nodiscard]] const std::optional<ArcReferenceOverlay>& arcReference() const noexcept;
 
 private:
     std::string dynamicText_;
@@ -85,6 +94,7 @@ private:
     std::optional<TransientPolyline> drawingPolyline_;
     std::optional<TransientCircle> drawingCircle_;
     std::optional<TransientArc> drawingArc_;
+    std::optional<ArcReferenceOverlay> arcReference_;
 };
 
 }

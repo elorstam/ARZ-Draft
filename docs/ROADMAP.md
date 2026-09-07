@@ -156,8 +156,9 @@ AUTOMATED COMPLETE — HUMAN ACCEPTANCE PENDING
 - active-command transient PLINE vertex/midpoint snapping through shared ranking
 - three-state ARC reference preview with dynamic radius and sweep information
 - context-sensitive idle/selection right-click menu with active-command preservation
-- interactive COPY/CO placement distinct from clipboard Copy, with base-point snapping
-- professional transient crosshair and centered pickbox cursor overlay
+- continuous multi-destination COPY/CO placement distinct from clipboard Copy, with fixed base-point snapping
+- compact professional transient crosshair and centered pickbox cursor overlay
+- immediate post-P2 ARC construction/reference state independent of valid arc geometry
 - rendering, selection, snapping and read-only properties for each entity
 - mixed-entity copy/paste through one undoable transaction
 - complete command undo/redo and regression coverage

@@ -16,6 +16,9 @@ namespace arz::rendering {
 
 class QtOverlayRenderer final {
 public:
+    static constexpr double CrosshairArmLengthPixels = 36.0;
+    static constexpr double PickboxSizePixels = 8.0;
+
     void render(QPainter& painter,
                 const QSize& canvasSize,
                 const RenderContext& context,

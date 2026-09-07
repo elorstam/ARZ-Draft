@@ -57,5 +57,8 @@ const std::optional<TransientCircle>& OverlayState::drawingCircle() const noexce
 void OverlayState::setDrawingArc(TransientArc value) { drawingArc_ = value; }
 void OverlayState::clearDrawingArc() noexcept { drawingArc_.reset(); }
 const std::optional<TransientArc>& OverlayState::drawingArc() const noexcept { return drawingArc_; }
+void OverlayState::setArcReference(ArcReferenceOverlay value) { arcReference_ = value; }
+void OverlayState::clearArcReference() noexcept { arcReference_.reset(); }
+const std::optional<ArcReferenceOverlay>& OverlayState::arcReference() const noexcept { return arcReference_; }
 
 }

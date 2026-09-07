@@ -85,9 +85,7 @@ bool CadApplicationController::confirmInput() {
         commandInput_.clearBuffer();
         return invokeCommandText(text);
     }
-    if (copyInput_.state() == arz::interaction::CopyInputState::AwaitingDestination
-        && overlayState_.pastePlacement()) return commitCopy(overlayState_.pastePlacement()->insertionPoint);
-    if (copyInput_.state() == arz::interaction::CopyInputState::AwaitingBasePoint) {
+    if (copyInput_.state() != arz::interaction::CopyInputState::Inactive) {
         copyInput_.cancel(); overlayState_.clearPastePlacement(); updateOverlayText(); return true;
     }
     if (overlayState_.pastePlacement()) {
@@ -113,12 +111,13 @@ bool CadApplicationController::confirmInput() {
         circleInput_.cancel(); overlayState_.clearDrawingCircle();
         selection_.replace({view->objectId()}); synchronizeAfterModelChange(); return true;
     }
-    if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingEnd
+    if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingThirdPoint
         && overlayState_.drawingArc()) {
         // ARC requires an explicit third point. Enter/Space cancels the pending
         // provisional state rather than treating the cursor as a confirmed point.
         arcInput_.cancel();
         overlayState_.clearDrawingArc();
+        overlayState_.clearArcReference();
         updateOverlayText();
         return true;
     }
@@ -183,7 +182,8 @@ void CadApplicationController::updatePointer(arz::geometry::Point2D worldPoint,
         overlayState_.setDrawingCircle({*circleInput_.center(),
             arz::geometry::distance(*circleInput_.center(), worldPoint)});
     }
-    if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingEnd) {
+    if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingThirdPoint) {
+        overlayState_.setArcReference({*arcInput_.start(), *arcInput_.second(), worldPoint});
         if (const auto arc = arcInput_.preview(worldPoint)) {
             overlayState_.setDrawingArc({arc->center, arc->radius, arc->startAngle,
                 arz::geometry::directedAngleSweep(arc->startAngle, arc->endAngle,
@@ -317,10 +317,13 @@ CanvasAction CadApplicationController::canvasClick(arz::geometry::Point2D worldP
         if (const auto snap = snapCandidate(worldPoint, worldTolerance)) worldPoint = snap->point;
         const auto arc = arcInput_.acceptPoint(worldPoint);
         if (!arc) {
+            if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingThirdPoint)
+                overlayState_.setArcReference({*arcInput_.start(), *arcInput_.second(), worldPoint});
             updateOverlayText();
             return CanvasAction::FirstLinePointAccepted;
         }
         overlayState_.clearDrawingArc();
+        overlayState_.clearArcReference();
         auto command = std::make_unique<arz::cad::AddArcCommand>(document_, currentLayerId_,
             arc->center, arc->radius, arc->startAngle, arc->endAngle,
             arc->counterClockwise);
@@ -387,8 +390,12 @@ std::optional<arz::cad::SnapResult> CadApplicationController::snapCandidate(
 }
 
 bool CadApplicationController::undo() {
-    cancelDrawingCommands();
-    overlayState_.clearPastePlacement();
+    const bool continuousCopy = copyInput_.state()
+        == arz::interaction::CopyInputState::AwaitingDestination;
+    if (!continuousCopy) {
+        cancelDrawingCommands();
+        overlayState_.clearPastePlacement();
+    }
     overlayState_.clearSelectionWindow();
     if (!history_.undo()) return false;
     if (!rebuildSpatialIndex()) {
@@ -400,8 +407,12 @@ bool CadApplicationController::undo() {
     return true;
 }
 bool CadApplicationController::redo() {
-    cancelDrawingCommands();
-    overlayState_.clearPastePlacement();
+    const bool continuousCopy = copyInput_.state()
+        == arz::interaction::CopyInputState::AwaitingDestination;
+    if (!continuousCopy) {
+        cancelDrawingCommands();
+        overlayState_.clearPastePlacement();
+    }
     overlayState_.clearSelectionWindow();
     if (!history_.redo()) return false;
     if (!rebuildSpatialIndex()) {
@@ -434,7 +445,10 @@ bool CadApplicationController::commitCopy(arz::geometry::Point2D insertionPoint)
     for (const auto& source : clipboard_.arcs()) entities.emplace_back(arz::cad::ArcCreationData{source.layerId,{source.center.x+delta.x,source.center.y+delta.y},source.radius,source.startAngle,source.endAngle,source.counterClockwise,source.graphics});
     auto command=std::make_unique<arz::cad::AddCadEntitiesCommand>(document_,std::move(entities)); auto* view=command.get();
     if (!history_.execute(std::move(command))) return false;
-    selection_.replace(view->objectIds()); copyInput_.cancel(); overlayState_.clearPastePlacement(); synchronizeAfterModelChange(); return true;
+    selection_.replace(view->objectIds());
+    updatePlacementOverlay(insertionPoint, base);
+    synchronizeAfterModelChange();
+    return true;
 }
 bool CadApplicationController::cutSelection() { return copySelection() && deleteSelection(); }
 bool CadApplicationController::paste() {
@@ -552,7 +566,7 @@ std::string CadApplicationController::commandPrompt() const {
     if (circleInput_.state() == arz::interaction::CircleInputState::AwaitingRadiusPoint) return "CIRCLE: Specify radius point";
     if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingStart) return "ARC: Specify start point";
     if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingSecond) return "ARC: Specify second point";
-    if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingEnd) return "ARC: Specify end point";
+    if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingThirdPoint) return "ARC: Specify end point";
     if (copyInput_.state() == arz::interaction::CopyInputState::AwaitingBasePoint) return "COPY: Specify base point";
     if (copyInput_.state() == arz::interaction::CopyInputState::AwaitingDestination) return "COPY: Specify second point";
     return "Command:";
@@ -591,7 +605,7 @@ void CadApplicationController::updateOverlayText() {
     else if (circleInput_.state() == arz::interaction::CircleInputState::AwaitingRadiusPoint) overlayState_.setDynamicText("Specify radius point");
     else if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingStart) overlayState_.setDynamicText("Specify start point");
     else if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingSecond) overlayState_.setDynamicText("Specify second point");
-    else if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingEnd
+    else if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingThirdPoint
              && overlayState_.drawingArc()) {
         const auto& arc = *overlayState_.drawingArc();
         const double degrees = arc.sweepAngle * 180.0 / std::numbers::pi;
@@ -599,7 +613,7 @@ void CadApplicationController::updateOverlayText() {
             + std::to_string(arc.radius) + " mm | sweep "
             + std::to_string(degrees) + " deg");
     }
-    else if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingEnd) overlayState_.setDynamicText("Specify end point");
+    else if (arcInput_.state() == arz::interaction::ArcInputState::AwaitingThirdPoint) overlayState_.setDynamicText("Specify end point");
     else overlayState_.setDynamicText({});
 }
 
@@ -635,6 +649,7 @@ void CadApplicationController::cancelDrawingCommands() noexcept {
     overlayState_.clearDrawingPolyline();
     overlayState_.clearDrawingCircle();
     overlayState_.clearDrawingArc();
+    overlayState_.clearArcReference();
 }
 
 void CadApplicationController::updatePlacementOverlay(arz::geometry::Point2D insertionPoint,

@@ -2,7 +2,7 @@
 #include <optional>
 #include "geometry/primitives/Point2D.h"
 namespace arz::interaction {
-enum class ArcInputState { Inactive = 0, AwaitingStart, AwaitingSecond, AwaitingEnd };
+enum class ArcInputState { Inactive = 0, AwaitingStart, AwaitingSecond, AwaitingThirdPoint };
 struct ThreePointArcInput final {
     arz::geometry::Point2D center{};
     double radius{};

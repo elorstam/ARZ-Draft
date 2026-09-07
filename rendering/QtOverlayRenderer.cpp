@@ -83,6 +83,16 @@ void QtOverlayRenderer::render(
         const double radius = circle->radius * context.pixelsPerWorldUnit;
         painter.drawEllipse(center, radius, radius);
     }
+    if (const auto& reference = overlays.arcReference()) {
+        painter.setPen(QPen(QColor(150, 205, 230, 190), 1.0, Qt::DashLine));
+        painter.drawLine(screenPoint(context, reference->startPoint),
+                         screenPoint(context, reference->secondPoint));
+        painter.drawLine(screenPoint(context, reference->secondPoint),
+                         screenPoint(context, reference->provisionalEndPoint));
+        painter.setPen(QPen(QColor(150, 205, 230, 135), 1.0, Qt::DotLine));
+        painter.drawLine(screenPoint(context, reference->startPoint),
+                         screenPoint(context, reference->provisionalEndPoint));
+    }
     if (const auto& arc = overlays.drawingArc()) {
         const auto center = screenPoint(context, arc->center);
         const double radius = arc->radius * context.pixelsPerWorldUnit;
@@ -140,12 +150,15 @@ void QtOverlayRenderer::render(
 
     painter.setPen(QPen(QColor(178, 190, 204, 170), 1.0));
     painter.setBrush(Qt::NoBrush);
-    painter.drawLine(QPointF(0.0, cursorPosition.y()),
-                     QPointF(canvasSize.width(), cursorPosition.y()));
-    painter.drawLine(QPointF(cursorPosition.x(), 0.0),
-                     QPointF(cursorPosition.x(), canvasSize.height()));
+    painter.drawLine(QPointF(cursorPosition.x() - CrosshairArmLengthPixels, cursorPosition.y()),
+                     QPointF(cursorPosition.x() + CrosshairArmLengthPixels, cursorPosition.y()));
+    painter.drawLine(QPointF(cursorPosition.x(), cursorPosition.y() - CrosshairArmLengthPixels),
+                     QPointF(cursorPosition.x(), cursorPosition.y() + CrosshairArmLengthPixels));
     painter.setPen(QPen(QColor(235, 240, 245, 220), 1.0));
-    painter.drawRect(QRectF(cursorPosition.x() - 4.0, cursorPosition.y() - 4.0, 8.0, 8.0));
+    const double pickboxHalf = PickboxSizePixels * 0.5;
+    painter.drawRect(QRectF(cursorPosition.x() - pickboxHalf,
+                            cursorPosition.y() - pickboxHalf,
+                            PickboxSizePixels, PickboxSizePixels));
 
     if (overlays.dynamicText().empty()) return;
     const QString text = QString::fromStdString(overlays.dynamicText());

@@ -99,8 +99,9 @@ Phase 1.2 — Core 2D Drawing Entities
 - Shared transient snap candidates for active PLINE vertices and segment midpoints
 - True three-state ARC with live mathematical/reference preview and safe collinear handling
 - Native idle/selection canvas context menu with repeat, history, clipboard, erase and properties routing
-- Distinct interactive COPY/CO base-point and destination workflow separate from Ctrl+C clipboard copy
-- CAD crosshair and centered pickbox rendered as transient cursor overlay
+- Distinct continuous COPY/CO workflow with a fixed base point and immutable source, separate from Ctrl+C clipboard copy
+- Compact 36-pixel-arm CAD crosshair and centered 8-pixel pickbox rendered as transient cursor overlay
+- Immediate post-P2 ARC reference overlay with safe collinear construction guidance
 
 ## Tests
 Passing:

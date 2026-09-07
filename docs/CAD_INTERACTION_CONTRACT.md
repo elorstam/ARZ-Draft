@@ -138,9 +138,11 @@ current resolved insertion point and leave paste active.
 
 Clipboard Copy (`Ctrl+C` or Clipboard > Copy) only stores the immutable snapshot;
 it never starts placement. CAD COPY (`COPY`, `CO`, or Selection > Copy Selection)
-is a separate interactive command: it asks for a base point, previews displacement
-to the second point, and commits one new-ID copied set in one undoable transaction.
-Escape cancels it without mutation; originals remain selected and unchanged.
+is a separate interactive command: it asks for one base point, previews displacement
+to each destination, and commits each new-ID copied set as its own undoable action.
+COPY remains active for additional destinations, always using the immutable original
+snapshot and fixed base point; transforms never accumulate. Enter, Space, right-click,
+or Escape finishes the COPY session. Originals remain unchanged.
 
 ## Canvas Right-Click Policy
 
@@ -192,8 +194,13 @@ view state. They are not document objects, receive no `ObjectId`, cannot be sele
 or saved, and do not affect persistent bounds.
 
 The drafting canvas renders a light professional crosshair and centered square
-pickbox as a transient overlay while hiding the native arrow cursor. Snap markers
+pickbox as a transient overlay while hiding the native arrow cursor. Its configurable
+defaults use 36-pixel arms and an 8-pixel pickbox rather than viewport-spanning lines. Snap markers
 remain visually distinct from the pickbox and dynamic input is cursor-relative.
+
+After ARC P2, overlay state immediately stores the fixed P1/P2 points and provisional
+P3. Safe construction lines render even when those points are collinear; the optional
+arc, radius, and sweep values appear only when the provisional circumcircle is valid.
 
 Window selection is blue and solid; crossing selection is green and dashed.
 Middle-button drag pans, wheel input zooms about the cursor, and middle-button

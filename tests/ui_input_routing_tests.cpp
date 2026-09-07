@@ -8,6 +8,7 @@
 #include <QMouseEvent>
 
 #include "app/ui/MainWindow.h"
+#include "rendering/QtOverlayRenderer.h"
 #include "views/CadCanvasWidget.h"
 
 namespace {
@@ -22,6 +23,10 @@ void press(QWidget& target, int key, const QString& text = {},
 }
 
 int main(int argc, char* argv[]) {
+    static_assert(arz::rendering::QtOverlayRenderer::CrosshairArmLengthPixels >= 30.0);
+    static_assert(arz::rendering::QtOverlayRenderer::CrosshairArmLengthPixels <= 45.0);
+    static_assert(arz::rendering::QtOverlayRenderer::PickboxSizePixels >= 6.0);
+    static_assert(arz::rendering::QtOverlayRenderer::PickboxSizePixels <= 8.0);
     QApplication application(argc, argv);
     arz::app::MainWindow window;
     window.show();

@@ -20,7 +20,7 @@ void ArcInputController::cancel() noexcept { start_.reset(); second_.reset(); st
 std::optional<ThreePointArcInput> ArcInputController::acceptPoint(arz::geometry::Point2D point) noexcept {
     if (state_ == ArcInputState::Inactive) return std::nullopt;
     if (state_ == ArcInputState::AwaitingStart) { start_ = point; state_ = ArcInputState::AwaitingSecond; return std::nullopt; }
-    if (state_ == ArcInputState::AwaitingSecond) { second_ = point; state_ = ArcInputState::AwaitingEnd; return std::nullopt; }
+    if (state_ == ArcInputState::AwaitingSecond) { second_ = point; state_ = ArcInputState::AwaitingThirdPoint; return std::nullopt; }
     const auto result = construct(*start_, *second_, point);
     if (result) cancel();
     return result;

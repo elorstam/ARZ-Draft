@@ -177,8 +177,17 @@ bool testArcThreePointPreviewAndSafeInvalidState() {
     if (!controller.document().objectIds().empty()) return false;
     (void)controller.canvasClick({10, 10}, 0.01);
     if (controller.document().objectIds().size() != 0
-        || controller.arcInputState() != arz::interaction::ArcInputState::AwaitingEnd)
+        || controller.arcInputState() != arz::interaction::ArcInputState::AwaitingThirdPoint
+        || !controller.overlayState().arcReference())
         return false;
+    controller.updatePointer({20, 0}, 0.01);
+    if (!controller.overlayState().arcReference()
+        || !controller.overlayState().drawingArc()) return false;
+    const auto firstPreview = *controller.overlayState().drawingArc();
+    controller.updatePointer({20, 5}, 0.01);
+    if (!controller.overlayState().drawingArc()
+        || near(firstPreview.radius, controller.overlayState().drawingArc()->radius)
+        || near(firstPreview.sweepAngle, controller.overlayState().drawingArc()->sweepAngle)) return false;
     for (int i = 0; i < 200; ++i)
         controller.updatePointer({20.0, static_cast<double>(i) * 0.05}, 0.01);
     if (!controller.overlayState().drawingArc()
@@ -199,7 +208,8 @@ bool testArcThreePointPreviewAndSafeInvalidState() {
     (void)controller.canvasClick({0, 0}, 0.01);
     (void)controller.canvasClick({10, 0}, 0.01);
     controller.updatePointer({20, 0}, 0.01);
-    if (controller.overlayState().drawingArc() || !controller.document().contains(arc->id()))
+    if (controller.overlayState().drawingArc() || !controller.overlayState().arcReference()
+        || !controller.document().contains(arc->id()))
         return false;
     (void)controller.escape();
     return controller.arcInputState() == arz::interaction::ArcInputState::Inactive
@@ -207,34 +217,50 @@ bool testArcThreePointPreviewAndSafeInvalidState() {
 }
 
 bool testInteractiveCopySelection() {
-    const auto fail = [](int) { return false; };
     arz::app::CadApplicationController controller;
     controller.startLine();
     (void)controller.canvasClick({0, 0}, 0.01);
     (void)controller.canvasClick({10, 0}, 0.01);
     const auto sourceId = controller.selectedObjectId();
-    if (!sourceId || controller.document().objectIds().size() != 1 || !controller.selectAll()) return fail(1);
-    if (!controller.copySelection() || controller.copyInputState() != arz::interaction::CopyInputState::Inactive) return fail(2);
-    if (!controller.startCopySelection() || controller.copyInputState() != arz::interaction::CopyInputState::AwaitingBasePoint) return fail(3);
+    if (!sourceId || controller.document().objectIds().size() != 1 || !controller.selectAll()) return false;
+    if (!controller.copySelection() || controller.copyInputState() != arz::interaction::CopyInputState::Inactive) return false;
+    if (!controller.startCopySelection() || controller.copyInputState() != arz::interaction::CopyInputState::AwaitingBasePoint) return false;
     (void)controller.canvasClick({0, 0}, 0.5);
     if (controller.copyInputState() != arz::interaction::CopyInputState::AwaitingDestination
-        || controller.document().objectIds().size() != 1) return fail(4);
+        || controller.document().objectIds().size() != 1) return false;
+    const auto fixedBase = controller.copyBasePoint();
     for (int i = 0; i < 100; ++i) controller.updatePointer({20.0 + i * 0.1, 5.0}, 0.01);
-    if (!controller.overlayState().pastePlacement() || controller.document().objectIds().size() != 1) return fail(5);
+    if (!controller.overlayState().pastePlacement() || controller.document().objectIds().size() != 1) return false;
     if (controller.canvasClick({20, 5}, 0.01) != arz::app::CanvasAction::EntityCreated
-        || controller.document().objectIds().size() != 2) return fail(6);
+        || controller.document().objectIds().size() != 2
+        || controller.copyInputState() != arz::interaction::CopyInputState::AwaitingDestination
+        || controller.copyBasePoint() != fixedBase) return false;
+    controller.updatePointer({40, 10}, 0.01);
+    if (controller.canvasClick({40, 10}, 0.01) != arz::app::CanvasAction::EntityCreated) return false;
+    controller.updatePointer({-10, 20}, 0.01);
+    if (controller.canvasClick({-10, 20}, 0.01) != arz::app::CanvasAction::EntityCreated
+        || controller.document().objectIds().size() != 4
+        || controller.copyBasePoint() != fixedBase) return false;
     const auto ids = controller.document().objectIds();
-    if (ids.size() != 2 || ids[0] == ids[1] || !controller.document().contains(sourceId)) return fail(7);
-    const auto* copied = dynamic_cast<const arz::cad::LineEntity*>(controller.document().object(ids.back()));
+    if (ids.size() != 4 || !controller.document().contains(sourceId)) return false;
+    const auto* copied = dynamic_cast<const arz::cad::LineEntity*>(controller.document().object(ids[1]));
+    const auto* copied2 = dynamic_cast<const arz::cad::LineEntity*>(controller.document().object(ids[2]));
+    const auto* copied3 = dynamic_cast<const arz::cad::LineEntity*>(controller.document().object(ids[3]));
     if (!copied || !near(copied->start().x, 20) || !near(copied->start().y, 5)
-        || !near(copied->end().x, 30) || !near(copied->end().y, 5)) return fail(8);
-    if (!controller.undo() || controller.document().objectIds().size() != 1
-        || !controller.redo() || controller.document().objectIds().size() != 2) return fail(9);
+        || !near(copied->end().x, 30) || !near(copied->end().y, 5)
+        || !copied2 || !near(copied2->start().x, 40) || !near(copied2->end().x, 50)
+        || !copied3 || !near(copied3->start().x, -10) || !near(copied3->end().x, 0)) return false;
+    if (!controller.undo() || controller.document().objectIds().size() != 3
+        || controller.copyInputState() != arz::interaction::CopyInputState::AwaitingDestination
+        || !controller.undo() || controller.document().objectIds().size() != 2
+        || !controller.redo() || controller.document().objectIds().size() != 3) return false;
+    if (!controller.confirmInput() || controller.copyInputState() != arz::interaction::CopyInputState::Inactive) return false;
     (void)controller.selectAll();
-    if (!controller.startCopySelection()) return fail(10);
-    if (!controller.escape()) return fail(11);
-    if (controller.document().objectIds().size() != 2) return fail(12);
-    return controller.copyInputState() == arz::interaction::CopyInputState::Inactive;
+    if (!controller.startCopySelection() || !controller.escape()) return false;
+    (void)controller.selectAll();
+    if (!controller.startCopySelection() || !controller.rightClick()) return false;
+    return controller.copyInputState() == arz::interaction::CopyInputState::Inactive
+        && controller.document().objectIds().size() == 3;
 }
 
 bool testAliasesParserAndRenderAdapters() {

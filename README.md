@@ -1,6 +1,6 @@
 ﻿# ARZ Draft
 
-ARZ Draft is a native C++23 architectural CAD application.
+ARZ Studio CAD is a native C++23 architectural CAD application.
 
 ## V1 Goal
 

@@ -1,5 +1,7 @@
 ﻿#include "core/document/Document.h"
 
+#include <utility>
+
 namespace arz::core {
 
 ObjectId Document::nextObjectId() noexcept {
@@ -7,13 +9,18 @@ ObjectId Document::nextObjectId() noexcept {
 }
 
 bool Document::addObject(
-    std::unique_ptr<DocumentObject> object
+    std::unique_ptr<DocumentObject>&& object
 ) {
     return registry_.add(std::move(object));
 }
 
 bool Document::removeObject(ObjectId id) {
     return registry_.remove(id);
+}
+
+std::unique_ptr<DocumentObject>
+Document::takeObject(ObjectId id) noexcept {
+    return registry_.take(id);
 }
 
 DocumentObject* Document::object(ObjectId id) noexcept {
@@ -32,6 +39,10 @@ bool Document::contains(ObjectId id) const noexcept {
 
 std::size_t Document::objectCount() const noexcept {
     return registry_.size();
+}
+
+std::vector<ObjectId> Document::objectIds() const {
+    return registry_.ids();
 }
 
 arz::cad::LayerTable& Document::layers() noexcept {

@@ -52,7 +52,7 @@ Goals:
 - No brute-force architecture lock-in
 
 ### 0.10 Snap Foundation
-NEXT
+COMPLETE
 
 Goals:
 - Endpoint snap
@@ -66,14 +66,14 @@ Goals:
 # Phase 1 — First Interactive CAD
 
 ## 1.0 First Interactive CAD Sandbox
-PLANNED
+COMPLETE
 
 This phase introduces the first live desktop UI for testing the CAD engine.
 
 Technology:
 - Qt 6
 - Native C++
-- Existing ARZ Draft core/document/command architecture
+- Existing ARZ Studio CAD core/document/command architecture
 
 Initial UI goals:
 - Main desktop window
@@ -100,7 +100,7 @@ First end-to-end workflow:
 
 Acceptance goal:
 
-A LINE must be drawable interactively using the real ARZ Draft
+A LINE must be drawable interactively using the real ARZ Studio CAD
 Document + Command + Transaction + Rendering architecture.
 
 The sandbox is a developer/test interface first.
@@ -108,9 +108,27 @@ It does not need the final production UI design.
 
 After Phase 1.0, engine and UI development proceed in parallel.
 
+## 1.0.1 CAD Interaction Foundation
+
+AUTOMATED COMPLETE — HUMAN ACCEPTANCE PENDING
+
+Established the shared professional CAD interaction contract before adding more
+drawing/editing commands:
+
+- centralized command typing, aliases, history, repeat, Enter/Space and Esc
+- shared dynamic input and command prompts
+- multi-object selection, Window/Crossing and Shift removal
+- undoable atomic Delete, Cut and Paste with an internal CAD clipboard
+- global focus-safe shortcuts and shared drafting toggles
+- right-click routing and Zoom Extents
+
+Phase 1.1 must not begin until this phase has been manually accepted.
+
 ---
 
 ## Phase 1.x — Manual 2D CAD Expansion
+
+NEXT
 
 Planned:
 - POLYLINE
@@ -177,7 +195,7 @@ Planned:
 
 ## UI Layout Reference
 
-ARZ Draft V1 user interface should follow a familiar professional CAD layout inspired by established desktop CAD workflows, without copying proprietary assets or exact proprietary UI.
+ARZ Studio CAD V1 user interface should follow a familiar professional CAD layout inspired by established desktop CAD workflows, without copying proprietary assets or exact proprietary UI.
 
 Primary layout:
 
@@ -211,7 +229,7 @@ Ribbon + Properties + Canvas + Command Line + Status Bar
 
 The first version may contain only a small number of functional tools, but the overall spatial layout should already resemble a professional desktop CAD application.
 
-ARZ Draft should preserve familiar CAD workflow while using its own visual identity and implementation.
+ARZ Studio CAD should preserve familiar CAD workflow while using its own visual identity and implementation.
 
 Future ARZ-specific additions may include:
 - Story / Floor selector

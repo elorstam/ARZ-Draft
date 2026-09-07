@@ -1,27 +1,23 @@
 ﻿#include <iostream>
 
-#include "core/units/Length.h"
-#include "geometry/primitives/Point2D.h"
+#include <QApplication>
+#include <QTimer>
 
-int main() {
-    const auto wallThickness =
-        arz::core::Length::fromCentimeters(20.0);
+#include "app/ui/MainWindow.h"
 
-    const arz::geometry::Point2D origin{
-        0.0,
-        0.0
-    };
+int main(int argc, char* argv[]) {
+    QApplication application(argc, argv);
+    application.setApplicationName(QStringLiteral("ARZ Studio CAD"));
+    application.setOrganizationName(QStringLiteral("ARZ Studio"));
+    application.setStyle(QStringLiteral("Fusion"));
 
-    std::cout
-        << "ARZ Draft\n"
-        << "Version: 0.1.0\n"
-        << "Wall thickness: "
-        << wallThickness.millimeters()
-        << " mm\n"
-        << "Origin: "
-        << origin.x << ", "
-        << origin.y
-        << '\n';
+    arz::app::MainWindow window;
+    window.show();
 
-    return 0;
+    if (application.arguments().contains(
+            QStringLiteral("--smoke-test"))) {
+        QTimer::singleShot(500, &application, &QApplication::quit);
+    }
+
+    return application.exec();
 }

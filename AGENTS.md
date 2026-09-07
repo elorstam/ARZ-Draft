@@ -1,6 +1,6 @@
 ﻿# ARZ Draft Agent Rules
 
-ARZ Draft is developed as an agent-friendly native C++23 CAD application.
+ARZ Studio CAD is developed as an agent-friendly native C++23 CAD application.
 
 ## Current Product Scope
 
@@ -52,7 +52,24 @@ For every task:
 
 ## Current Phase
 
-Phase 0 — Project Bootstrap and Core Foundations.
+Phase 1.0.1 — CAD Interaction Foundation.
 
-Do not implement BIM, DWG, OpenCascade, AI features,
-automatic sections or automatic elevations during Phase 0.
+Do not start Phase 1.1, BIM, DWG, OpenCascade, AI features,
+automatic sections or automatic elevations during Phase 1.0.1.
+
+## End-of-Phase Workflow
+
+Every development phase must finish in this order:
+
+1. Implement the scoped change and tests.
+2. Configure and build the supported Debug application.
+3. Run the complete relevant automated suite.
+4. Run `git diff --check` and inspect repository status/diff.
+5. Update durable project documentation only after verification passes.
+6. Commit the intended source changes and push the current branch without force.
+7. Launch the normal ARZ Studio CAD application without `--smoke-test`.
+8. Leave the application open for human live acceptance when the environment permits.
+
+Automated completion and human acceptance are separate. Agents may report
+AUTOMATED COMPLETE only after build, tests, diff check, commit, and push succeed.
+Only the user may mark a phase HUMAN ACCEPTED after testing the live application.

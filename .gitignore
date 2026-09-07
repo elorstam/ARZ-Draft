@@ -24,7 +24,7 @@ CMakeFiles/
 
 # Qt generated
 moc_*
-ui_*
+ui_*.h
 qrc_*
 
 # OS

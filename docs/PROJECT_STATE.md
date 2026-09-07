@@ -67,7 +67,7 @@ Phase 1.1 — Rendering Foundation
 - Shared F3/F7/F8/F9/F10/F11/F12 drafting settings and status controls
 - OSNAP and dynamic-input functional toggles
 - Focus-safe application shortcut routing
-- Right-click confirm/repeat policy
+- Shared right-click active-interaction finish policy with idle no-op behavior
 - Middle-button double-click Zoom Extents
 - Durable CAD interaction contract
 - Registry-driven command autocomplete with keyboard suggestion navigation
@@ -85,6 +85,7 @@ Phase 1.1 — Rendering Foundation
 - Reused render-scene storage for paint-loop efficiency
 - Repeating two-point LINE sessions creating independent, separately undoable LineEntity objects
 - Repeated endpoint/midpoint-snapped paste placement from one immutable clipboard snapshot
+- Right-click exit for LINE and repeated paste without geometry or history mutation
 
 ## Tests
 Passing:
@@ -104,9 +105,10 @@ Passing:
 ## Last Known Status
 Phases 1.0 and 1.0.1 are HUMAN ACCEPTED. Phase 1.1 live-review corrections for
 independent two-point LINE creation and repeated object-snapped paste placement
-pass all automated tests in the Debug MSVC/Qt configuration. The normal
-application is launched at the end of the corrective run for renewed human
-acceptance; automated verification does not substitute for it.
+plus shared right-click command exit pass all automated tests in the Debug
+MSVC/Qt configuration. The normal application is launched at the end of the
+corrective run for renewed human acceptance; automated verification does not
+substitute for it.
 
 ## Spatial Index Synchronization
 The spatial index is a derived service outside Document. Phase 0.9
@@ -135,8 +137,9 @@ Do not bypass command/transaction architecture.
 AUTOMATED COMPLETE after the phase commit is pushed. HUMAN ACCEPTED remains
 pending until the user verifies repeating independent two-point LINE creation,
 repeated snapped paste placement from one invocation, persistent lines, selection
-highlight, lineweight display, zoom/pan, transient overlays, undo/redo redraw, and
-absence of obvious flicker or rendering regressions in the normal application.
+highlight, right-click command exit, lineweight display, zoom/pan, transient
+overlays, undo/redo redraw, and absence of obvious flicker or rendering regressions
+in the normal application.
 
 ## Locked UI Direction
 

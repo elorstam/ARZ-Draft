@@ -67,13 +67,8 @@ bool CadApplicationController::confirmInput() {
 }
 
 bool CadApplicationController::escape() {
-    if (overlayState_.selectionWindow()) {
-        overlayState_.clearSelectionWindow();
-    } else if (overlayState_.pastePlacement()) {
-        overlayState_.clearPastePlacement();
-    } else if (lineInput_.state() != arz::interaction::LineInputState::Inactive) {
-        lineInput_.cancel();
-    } else if (!commandInput_.buffer().empty()) {
+    if (finishActiveInteraction()) return true;
+    if (!commandInput_.buffer().empty()) {
         commandInput_.clearBuffer();
     } else if (!selection_.empty()) {
         selection_.clear();
@@ -92,7 +87,7 @@ bool CadApplicationController::invokeCommandText(std::string_view text) {
     }
     return invoke(*descriptor);
 }
-bool CadApplicationController::rightClick() { return confirmInput(); }
+bool CadApplicationController::rightClick() { return finishActiveInteraction(); }
 void CadApplicationController::selectPreviousSuggestion() noexcept {
     overlayState_.selectPreviousSuggestion();
 }
@@ -115,6 +110,20 @@ void CadApplicationController::updatePointer(arz::geometry::Point2D worldPoint,
         });
     }
     overlayState_.setPastePlacement(std::move(placement));
+}
+
+bool CadApplicationController::finishActiveInteraction() {
+    if (overlayState_.selectionWindow()) {
+        overlayState_.clearSelectionWindow();
+    } else if (overlayState_.pastePlacement()) {
+        overlayState_.clearPastePlacement();
+    } else if (lineInput_.state() != arz::interaction::LineInputState::Inactive) {
+        lineInput_.cancel();
+    } else {
+        return false;
+    }
+    updateOverlayText();
+    return true;
 }
 
 bool CadApplicationController::invoke(const arz::interaction::CommandDescriptor& descriptor) {

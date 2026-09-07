@@ -49,11 +49,19 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
     press(*canvas, Qt::Key_Return);
-    bool promptFound = false;
-    for (const auto* label : window.findChildren<QLabel*>()) {
-        if (label->text().contains(QStringLiteral("Specify first point"))) promptFound = true;
-    }
-    if (!promptFound) return EXIT_FAILURE;
+    const auto linePromptVisible = [&window]() {
+        for (const auto* label : window.findChildren<QLabel*>()) {
+            if (label->text().contains(QStringLiteral("Specify first point"))) return true;
+        }
+        return false;
+    };
+    if (!linePromptVisible()) return EXIT_FAILURE;
+    press(*canvas, Qt::Key_Return);
+    if (linePromptVisible()) return EXIT_FAILURE;
+    press(*canvas, Qt::Key_Space, QStringLiteral(" "));
+    if (!linePromptVisible()) return EXIT_FAILURE;
+    press(*canvas, Qt::Key_Space, QStringLiteral(" "));
+    if (linePromptVisible()) return EXIT_FAILURE;
     std::cout << "UI input routing tests passed\n";
     return EXIT_SUCCESS;
 }

@@ -140,6 +140,7 @@ AUTOMATED COMPLETE — HUMAN ACCEPTANCE PENDING
 - viewport visible-world-bounds support
 - repeating LINE sessions producing independent two-point entities
 - repeated endpoint/midpoint-snapped placements from one paste invocation
+- shared right-click exit for active interactions with no pending commit
 
 Live-review corrections are automated-verified. Phase 1.2 must not begin until
 this phase has been manually accepted.

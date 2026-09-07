@@ -43,6 +43,10 @@ the completed line's endpoint into the next line. Enter, Space, or right-click
 finishes active LINE without creating a line; only a later idle Enter/Space
 repeats LINE.
 
+Command persistence does not imply segment continuity. LINE remains active only
+to accept another independent first/second-point pair; connected-chain behavior
+belongs to a future PLINE or dedicated continuous drawing command.
+
 ## Cancellation
 
 Escape is idempotent and follows this priority:
@@ -108,6 +112,11 @@ future COPYBASE support. Paste placement uses the shared endpoint/midpoint
 resolved insertion point minus the clipboard base point. With Object Snap
 disabled, every placement uses the raw cursor world point.
 
+One paste invocation supports repeated placements until explicitly finished.
+Right-click or Escape exits repeated paste without committing the current preview.
+Enter and Space retain their paste placement meaning: they commit once at the
+current resolved insertion point and leave paste active.
+
 ## Shortcut and Focus Routing
 
 The application routes Ctrl+Z, Ctrl+Y, Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+A, Delete,
@@ -118,9 +127,12 @@ Actual text editors take priority. When focus is in `QLineEdit`, `QTextEdit`,
 `QPlainTextEdit`, or an editable combo box, Qt native text input and editing
 shortcuts are not intercepted. Clicking the canvas restores drafting focus.
 
-Right-click policy for Phase 1.0.1 is deterministic: during an active command it
-acts as Enter/confirm; while idle it repeats the last repeatable command. Right
-drag is reserved and does not create selection windows.
+Right-click policy is deterministic: while an interactive CAD command is active,
+right-click finishes/exits the active command without committing pending geometry.
+This clears LINE point state, paste preview, selection-window state, and derived
+snap feedback without creating a history entry. While idle, right-click is a safe
+no-op reserved for a future context menu; it does not repeat the last command.
+Right drag is reserved and does not create selection windows.
 
 ## Drafting Settings
 

@@ -1,6 +1,8 @@
+#include <array>
 #include <cstdlib>
 #include <iostream>
 #include <string_view>
+#include <vector>
 
 #include "app/application/CadApplicationController.h"
 #include "cad/entities/LineEntity.h"
@@ -332,7 +334,8 @@ bool testRepeatingIndependentLineContract() {
         || first->start() != arz::geometry::Point2D{0, 0}
         || first->end() != arz::geometry::Point2D{10, 0}
         || second->start() != arz::geometry::Point2D{10, 10}
-        || second->end() != arz::geometry::Point2D{20, 10}) return false;
+        || second->end() != arz::geometry::Point2D{20, 10}
+        || controller.history().undoCount() != 2) return false;
 
     if (!controller.confirmInput()
         || controller.lineInputState() != LineInputState::Inactive
@@ -357,6 +360,150 @@ bool testRepeatingIndependentLineContract() {
         && controller.lineInputState() == LineInputState::AwaitingFirstPoint
         && controller.confirmInput()
         && controller.lineInputState() == LineInputState::Inactive;
+}
+
+bool testRepeatedPasteAcrossSnapModes() {
+    using arz::interaction::DraftingToggle;
+    arz::app::CadApplicationController controller;
+    if (!addLine(controller, {0, 0}, {100, 0})
+        || !addLine(controller, {200, 0}, {300, 0})
+        || !addLine(controller, {400, 0}, {500, 0})
+        || !addLine(controller, {1000, 1000}, {1020, 1010})
+        || !controller.copySelection() || !controller.paste()) return false;
+
+    const auto source = controller.clipboard().lines().front();
+    const auto base = controller.clipboard().basePoint();
+    const auto initialCount = controller.document().objectCount();
+    std::vector<arz::core::ObjectId> placedIds;
+    const auto place = [&](arz::geometry::Point2D cursor,
+                           arz::geometry::Point2D expectedInsertion) {
+        const auto beforeCount = controller.document().objectCount();
+        const auto beforeUndo = controller.history().undoCount();
+        controller.updatePointer(cursor, 5.0);
+        const auto placement = controller.overlayState().pastePlacement();
+        if (!placement || placement->insertionPoint != expectedInsertion
+            || controller.document().objectCount() != beforeCount) return false;
+        const auto preview = placement->lines.front();
+        if (controller.canvasClick(cursor, 5.0) != arz::app::CanvasAction::EntityCreated
+            || controller.document().objectCount() != beforeCount + 1
+            || controller.history().undoCount() != beforeUndo + 1
+            || !controller.pastePlacementActive()) return false;
+        const auto id = controller.selectedObjectId();
+        const auto* pasted = dynamic_cast<const arz::cad::LineEntity*>(
+            controller.document().object(id));
+        if (!pasted || pasted->start() != preview.start || pasted->end() != preview.end
+            || std::ranges::find(placedIds, id) != placedIds.end()) return false;
+        placedIds.push_back(id);
+        return controller.clipboard().lines().front().start == source.start
+            && controller.clipboard().lines().front().end == source.end;
+    };
+
+    const std::array endpointCursors{
+        arz::geometry::Point2D{1, 1},
+        arz::geometry::Point2D{201, 1},
+        arz::geometry::Point2D{401, 1}};
+    const std::array endpointTargets{
+        arz::geometry::Point2D{0, 0},
+        arz::geometry::Point2D{200, 0},
+        arz::geometry::Point2D{400, 0}};
+    for (std::size_t index = 0; index < endpointCursors.size(); ++index) {
+        if (!place(endpointCursors[index], endpointTargets[index])) return false;
+    }
+
+    const std::array midpointCursors{
+        arz::geometry::Point2D{51, 1},
+        arz::geometry::Point2D{251, 1},
+        arz::geometry::Point2D{451, 1}};
+    const std::array midpointTargets{
+        arz::geometry::Point2D{50, 0},
+        arz::geometry::Point2D{250, 0},
+        arz::geometry::Point2D{450, 0}};
+    for (std::size_t index = 0; index < midpointCursors.size(); ++index) {
+        if (!place(midpointCursors[index], midpointTargets[index])) return false;
+    }
+
+    (void)controller.toggleDrafting(DraftingToggle::ObjectSnap);
+    const std::array rawPoints{
+        arz::geometry::Point2D{2, 1},
+        arz::geometry::Point2D{202, 1},
+        arz::geometry::Point2D{402, 1}};
+    for (const auto point : rawPoints) {
+        if (!place(point, point)) return false;
+    }
+
+    const std::array keyboardConfirmPoints{
+        arz::geometry::Point2D{550, 550},
+        arz::geometry::Point2D{575, 575}};
+    for (const auto point : keyboardConfirmPoints) {
+        const auto beforeCount = controller.document().objectCount();
+        controller.updatePointer(point, 5.0);
+        const auto preview = controller.overlayState().pastePlacement()->lines.front();
+        if (!controller.confirmInput()
+            || controller.document().objectCount() != beforeCount + 1
+            || !controller.pastePlacementActive()) return false;
+        const auto* pasted = dynamic_cast<const arz::cad::LineEntity*>(
+            controller.document().object(controller.selectedObjectId()));
+        if (!pasted || pasted->start() != preview.start || pasted->end() != preview.end)
+            return false;
+        placedIds.push_back(controller.selectedObjectId());
+    }
+
+    for (int index = 0; index < 100; ++index) {
+        const auto count = controller.document().objectCount();
+        controller.updatePointer({600.0 + index, 700.0 - index}, 5.0);
+        if (controller.document().objectCount() != count) return false;
+    }
+    return controller.document().objectCount() == initialCount + 11
+        && placedIds.size() == 11
+        && controller.overlayState().pastePlacement()->lines.front().start
+            == arz::geometry::Point2D{
+                source.start.x + 699.0 - base.x,
+                source.start.y + 601.0 - base.y}
+        && controller.escape() && !controller.pastePlacementActive();
+}
+
+bool testRightClickFinishesActiveInteraction() {
+    using arz::interaction::LineInputState;
+    arz::app::CadApplicationController controller;
+    controller.startLine();
+    const auto emptyHistory = controller.history().undoCount();
+    if (!controller.rightClick()
+        || controller.lineInputState() != LineInputState::Inactive
+        || controller.document().objectCount() != 0
+        || controller.history().undoCount() != emptyHistory
+        || controller.rightClick()
+        || controller.lineInputState() != LineInputState::Inactive) return false;
+
+    controller.startLine();
+    (void)controller.canvasClick({25, 25}, 0.1);
+    if (!controller.rightClick()
+        || controller.lineInputState() != LineInputState::Inactive
+        || controller.document().objectCount() != 0
+        || controller.history().undoCount() != emptyHistory
+        || controller.lineStartPoint()) return false;
+
+    if (!addLine(controller, {0, 0}, {100, 0})) return false;
+    const auto completedId = controller.selectedObjectId();
+    controller.startLine();
+    const auto completedHistory = controller.history().undoCount();
+    if (!controller.rightClick()
+        || !controller.document().contains(completedId)
+        || controller.history().undoCount() != completedHistory
+        || !controller.copySelection() || !controller.paste()) return false;
+
+    controller.updatePointer({1, 1}, 5.0);
+    const auto pasteCount = controller.document().objectCount();
+    const auto pasteHistory = controller.history().undoCount();
+    if (!controller.snapCandidate({1, 1}, 5.0)
+        || !controller.rightClick()
+        || controller.pastePlacementActive()
+        || controller.overlayState().pastePlacement()
+        || controller.document().objectCount() != pasteCount
+        || controller.history().undoCount() != pasteHistory
+        || controller.snapCandidate({1, 1}, 5.0)) return false;
+    return !controller.rightClick()
+        && controller.document().objectCount() == pasteCount
+        && controller.history().undoCount() == pasteHistory;
 }
 
 bool testSuggestionNavigationState() {
@@ -410,6 +557,8 @@ int main() {
     run("SingleLinePasteRegression", testSingleLinePasteRegression());
     run("PastePlacementObjectSnap", testPastePlacementObjectSnap());
     run("RepeatingIndependentLineContract", testRepeatingIndependentLineContract());
+    run("RepeatedPasteAcrossSnapModes", testRepeatedPasteAcrossSnapModes());
+    run("RightClickFinishesActiveInteraction", testRightClickFinishesActiveInteraction());
     run("SuggestionNavigationState", testSuggestionNavigationState());
     run("DraftingStateAndStaleCleanup", testDraftingStateAndStaleCleanup());
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

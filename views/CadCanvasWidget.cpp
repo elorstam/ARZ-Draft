@@ -124,6 +124,7 @@ void CadCanvasWidget::mousePressEvent(QMouseEvent* event) {
 
     if (event->button() == Qt::RightButton) {
         (void)controller_.rightClick();
+        updateHover(event->position());
         update();
         if (stateChanged_) stateChanged_();
         return;

@@ -78,6 +78,7 @@ public:
 
 private:
     [[nodiscard]] bool invoke(const arz::interaction::CommandDescriptor& descriptor);
+    [[nodiscard]] bool finishActiveInteraction();
     [[nodiscard]] bool rebuildSpatialIndex();
     void synchronizeAfterModelChange();
     void updateOverlayText();

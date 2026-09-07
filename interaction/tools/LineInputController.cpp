@@ -26,7 +26,7 @@ std::optional<LineInput> LineInputController::acceptPoint(
     }
 
     const LineInput result{*firstPoint_, point};
-    cancel();
+    firstPoint_ = point;
     return result;
 }
 

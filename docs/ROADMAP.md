@@ -138,8 +138,11 @@ AUTOMATED COMPLETE — HUMAN ACCEPTANCE PENDING
 - centralized screen lineweight policy
 - separate persistent document and transient overlay passes
 - viewport visible-world-bounds support
+- continuous LINE sessions with separate segment entities
+- endpoint/midpoint-snapped interactive paste placement
 
-Phase 1.2 must not begin until this phase has been manually accepted.
+Live-review corrections are automated-verified. Phase 1.2 must not begin until
+this phase has been manually accepted.
 
 ---
 

@@ -260,7 +260,7 @@ void MainWindow::refreshDraftingToggles() {
 }
 void MainWindow::toggleDrafting(arz::interaction::DraftingToggle toggle) {
     (void)controller_.toggleDrafting(toggle);
-    canvas_->update();
+    canvas_->refreshInteractionPointer();
     refreshUi();
 }
 
@@ -281,7 +281,7 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
     else if (control && key->key() == Qt::Key_X) { (void)controller_.cutSelection(); canvas_->update(); refreshUi(); }
     else if (control && key->key() == Qt::Key_V) {
         if (!key->isAutoRepeat() && controller_.paste())
-            controller_.updatePointer(canvas_->hoverWorldPoint());
+            canvas_->refreshInteractionPointer();
         canvas_->update(); refreshUi();
     }
     else if (control && key->key() == Qt::Key_A) { (void)controller_.selectAll(); canvas_->update(); refreshUi(); }

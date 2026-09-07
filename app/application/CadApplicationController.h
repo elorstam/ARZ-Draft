@@ -38,7 +38,8 @@ public:
     [[nodiscard]] bool rightClick();
     void selectPreviousSuggestion() noexcept;
     void selectNextSuggestion() noexcept;
-    void updatePointer(arz::geometry::Point2D worldPoint);
+    void updatePointer(arz::geometry::Point2D worldPoint,
+                       double worldTolerance = 0.0);
 
     [[nodiscard]] CanvasAction canvasClick(arz::geometry::Point2D worldPoint,
                                            double worldTolerance,

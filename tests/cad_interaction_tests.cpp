@@ -15,10 +15,11 @@ bool addLine(arz::app::CadApplicationController& controller,
              arz::geometry::Point2D start,
              arz::geometry::Point2D end) {
     controller.startLine();
-    return controller.canvasClick(start, 0.01)
+    const bool created = controller.canvasClick(start, 0.01)
             == arz::app::CanvasAction::FirstLinePointAccepted
         && controller.canvasClick(end, 0.01)
             == arz::app::CanvasAction::EntityCreated;
+    return created && controller.confirmInput();
 }
 
 bool testCommandInputContract() {
@@ -214,6 +215,114 @@ bool testSingleLinePasteRegression() {
         && controller.document().contains(pastedId);
 }
 
+bool testPastePlacementObjectSnap() {
+    using arz::interaction::DraftingToggle;
+    arz::app::CadApplicationController controller;
+    if (!addLine(controller, {0, 0}, {100, 0})
+        || !addLine(controller, {1000, 1000}, {1020, 1010})
+        || !controller.copySelection()) return false;
+
+    const auto sourceId = controller.selectedObjectId();
+    const auto sourceSnapshot = controller.clipboard().lines().front();
+    const auto base = controller.clipboard().basePoint();
+    const auto initialCount = controller.document().objectCount();
+    if (!controller.paste()) return false;
+
+    for (int index = 0; index < 100; ++index) {
+        controller.updatePointer({400.0 + index, 300.0 - index}, 5.0);
+    }
+    if (controller.document().objectCount() != initialCount
+        || controller.clipboard().lines().front().start != sourceSnapshot.start
+        || controller.clipboard().lines().front().end != sourceSnapshot.end) return false;
+
+    controller.updatePointer({2, 1}, 5.0);
+    const auto endpointPlacement = controller.overlayState().pastePlacement();
+    if (!endpointPlacement
+        || endpointPlacement->insertionPoint != arz::geometry::Point2D{0, 0}
+        || endpointPlacement->lines.front().start
+            != arz::geometry::Point2D{sourceSnapshot.start.x - base.x,
+                                      sourceSnapshot.start.y - base.y}) return false;
+    const auto endpointPreview = endpointPlacement->lines.front();
+    if (controller.canvasClick({2, 1}, 5.0) != arz::app::CanvasAction::EntityCreated
+        || controller.document().objectCount() != initialCount + 1
+        || controller.selectedObjectId() == sourceId) return false;
+    const auto* endpointPaste = dynamic_cast<const arz::cad::LineEntity*>(
+        controller.document().object(controller.selectedObjectId()));
+    if (!endpointPaste || endpointPaste->start() != endpointPreview.start
+        || endpointPaste->end() != endpointPreview.end) return false;
+
+    if (!controller.paste()) return false;
+    controller.updatePointer({51, 1}, 5.0);
+    const auto midpointPlacement = controller.overlayState().pastePlacement();
+    if (!midpointPlacement
+        || midpointPlacement->insertionPoint != arz::geometry::Point2D{50, 0}) return false;
+    if (!controller.escape()) return false;
+
+    (void)controller.toggleDrafting(DraftingToggle::ObjectSnap);
+    if (!controller.paste()) return false;
+    const arz::geometry::Point2D rawPoint{2, 1};
+    controller.updatePointer(rawPoint, 5.0);
+    const auto rawPlacement = controller.overlayState().pastePlacement();
+    return rawPlacement && rawPlacement->insertionPoint == rawPoint
+        && controller.clipboard().lines().front().start == sourceSnapshot.start
+        && controller.clipboard().lines().front().end == sourceSnapshot.end
+        && controller.escape()
+        && controller.document().objectCount() == initialCount + 1;
+}
+
+bool testContinuousLineContract() {
+    using arz::interaction::LineInputState;
+    arz::app::CadApplicationController controller;
+    controller.startLine();
+    if (controller.canvasClick({0, 0}, 0.01)
+            != arz::app::CanvasAction::FirstLinePointAccepted
+        || controller.canvasClick({10, 0}, 0.01)
+            != arz::app::CanvasAction::EntityCreated
+        || controller.lineInputState() != LineInputState::AwaitingSecondPoint
+        || controller.commandPrompt() != "LINE: Specify next point"
+        || controller.canvasClick({10, 10}, 0.01)
+            != arz::app::CanvasAction::EntityCreated
+        || controller.canvasClick({20, 10}, 0.01)
+            != arz::app::CanvasAction::EntityCreated
+        || controller.document().objectCount() != 3) return false;
+
+    const auto ids = controller.document().objectIds();
+    if (ids.size() != 3 || ids[0] == ids[1] || ids[1] == ids[2] || ids[0] == ids[2])
+        return false;
+    const auto* first = dynamic_cast<const arz::cad::LineEntity*>(controller.document().object(ids[0]));
+    const auto* second = dynamic_cast<const arz::cad::LineEntity*>(controller.document().object(ids[1]));
+    const auto* third = dynamic_cast<const arz::cad::LineEntity*>(controller.document().object(ids[2]));
+    if (!first || !second || !third
+        || first->start() != arz::geometry::Point2D{0, 0}
+        || first->end() != second->start()
+        || second->end() != third->start()
+        || third->end() != arz::geometry::Point2D{20, 10}) return false;
+
+    if (!controller.confirmInput()
+        || controller.lineInputState() != LineInputState::Inactive
+        || !controller.confirmInput()
+        || controller.lineInputState() != LineInputState::AwaitingFirstPoint
+        || !controller.confirmInput()
+        || controller.lineInputState() != LineInputState::Inactive) return false;
+
+    controller.startLine();
+    if (!controller.escape() || controller.lineInputState() != LineInputState::Inactive)
+        return false;
+
+    controller.startLine();
+    if (controller.canvasClick({200, 200}, 5.0)
+            != arz::app::CanvasAction::FirstLinePointAccepted
+        || controller.canvasClick({1, 1}, 5.0)
+            != arz::app::CanvasAction::EntityCreated) return false;
+    const auto* snapped = dynamic_cast<const arz::cad::LineEntity*>(
+        controller.document().object(controller.selectedObjectId()));
+    return snapped && snapped->start() == arz::geometry::Point2D{200, 200}
+        && snapped->end() == arz::geometry::Point2D{0, 0}
+        && controller.lineInputState() == LineInputState::AwaitingSecondPoint
+        && controller.confirmInput()
+        && controller.lineInputState() == LineInputState::Inactive;
+}
+
 bool testSuggestionNavigationState() {
     arz::interaction::OverlayState overlay;
     overlay.setCommandSuggestions({"LINE", "LINETYPE", "LENGTHEN"});
@@ -263,6 +372,8 @@ int main() {
     run("DeleteClipboardTransactions", testDeleteClipboardTransactions());
     run("PasteCancelDoesNotMutateDocument", testPasteCancelDoesNotMutateDocument());
     run("SingleLinePasteRegression", testSingleLinePasteRegression());
+    run("PastePlacementObjectSnap", testPastePlacementObjectSnap());
+    run("ContinuousLineContract", testContinuousLineContract());
     run("SuggestionNavigationState", testSuggestionNavigationState());
     run("DraftingStateAndStaleCleanup", testDraftingStateAndStaleCleanup());
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

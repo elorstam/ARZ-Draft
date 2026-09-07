@@ -48,6 +48,11 @@ void CadCanvasWidget::cancelActiveTool() {
     }
 }
 
+void CadCanvasWidget::refreshInteractionPointer() {
+    updateHover(cursorPosition_);
+    update();
+}
+
 arz::geometry::Point2D CadCanvasWidget::hoverWorldPoint() const noexcept {
     return hoverWorld_;
 }
@@ -106,7 +111,6 @@ void CadCanvasWidget::mouseMoveEvent(QMouseEvent* event) {
     }
 
     updateHover(position);
-    controller_.updatePointer(hoverWorld_);
     update();
 }
 
@@ -133,7 +137,6 @@ void CadCanvasWidget::mousePressEvent(QMouseEvent* event) {
     (void)controller_.canvasClick(hoverWorld_, worldTolerance(),
         event->modifiers().testFlag(Qt::ShiftModifier));
     updateHover(event->position());
-    controller_.updatePointer(hoverWorld_);
     update();
     if (stateChanged_) stateChanged_();
 }
@@ -218,6 +221,7 @@ void CadCanvasWidget::updateHover(QPointF point) {
         hoverWorld_,
         worldTolerance()
     );
+    controller_.updatePointer(hoverWorld_, worldTolerance());
 
     if (coordinatesChanged_) {
         coordinatesChanged_(hoverWorld_);

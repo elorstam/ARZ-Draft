@@ -58,6 +58,7 @@ bool CadApplicationController::confirmInput() {
         return commitPaste(overlayState_.pastePlacement()->insertionPoint);
     }
     if (lineInput_.state() != arz::interaction::LineInputState::Inactive) {
+        lineInput_.cancel();
         updateOverlayText();
         return true;
     }
@@ -99,9 +100,11 @@ void CadApplicationController::selectNextSuggestion() noexcept {
     overlayState_.selectNextSuggestion();
 }
 
-void CadApplicationController::updatePointer(arz::geometry::Point2D worldPoint) {
+void CadApplicationController::updatePointer(arz::geometry::Point2D worldPoint,
+                                             double worldTolerance) {
     if (overlayState_.selectionWindow()) overlayState_.updateSelectionWindow(worldPoint);
     if (!overlayState_.pastePlacement()) return;
+    if (const auto snap = snapCandidate(worldPoint, worldTolerance)) worldPoint = snap->point;
     const auto base = clipboard_.basePoint();
     const arz::geometry::Point2D delta{worldPoint.x - base.x, worldPoint.y - base.y};
     arz::interaction::PastePlacementOverlay placement{base, worldPoint, {}};
@@ -136,6 +139,7 @@ CanvasAction CadApplicationController::canvasClick(arz::geometry::Point2D worldP
                                                     double worldTolerance,
                                                     bool shiftModifier) {
     if (overlayState_.pastePlacement()) {
+        if (const auto snap = snapCandidate(worldPoint, worldTolerance)) worldPoint = snap->point;
         return commitPaste(worldPoint) ? CanvasAction::EntityCreated : CanvasAction::None;
     }
     if (lineInput_.state() != arz::interaction::LineInputState::Inactive) {
@@ -197,7 +201,8 @@ bool CadApplicationController::finishSelectionWindow(bool removalMode) {
 
 std::optional<arz::cad::SnapResult> CadApplicationController::snapCandidate(
     arz::geometry::Point2D worldPoint, double worldTolerance) const {
-    if (lineInput_.state() == arz::interaction::LineInputState::Inactive
+    if ((lineInput_.state() == arz::interaction::LineInputState::Inactive
+         && !overlayState_.pastePlacement())
         || !draftingSettings_.enabled(arz::interaction::DraftingToggle::ObjectSnap))
         return std::nullopt;
     return snapService_.bestSnap(worldPoint, worldTolerance, EnabledSnapTypes);

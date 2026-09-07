@@ -30,6 +30,7 @@ public:
     );
     void setStateChangedCallback(std::function<void()> callback);
     void cancelActiveTool();
+    void refreshInteractionPointer();
     [[nodiscard]] arz::geometry::Point2D hoverWorldPoint() const noexcept;
 
 protected:

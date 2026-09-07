@@ -70,9 +70,15 @@ bool testLineInputStateMachine() {
     if (!line
         || line->start != arz::geometry::Point2D{10.0, 20.0}
         || line->end != arz::geometry::Point2D{30.0, 40.0}
-        || input.state() != arz::interaction::LineInputState::Inactive) {
+        || input.state() != arz::interaction::LineInputState::AwaitingSecondPoint
+        || input.firstPoint() != arz::geometry::Point2D{30.0, 40.0}) {
         return false;
     }
+
+    const auto continuation = input.acceptPoint({50.0, 60.0});
+    if (!continuation
+        || continuation->start != arz::geometry::Point2D{30.0, 40.0}
+        || continuation->end != arz::geometry::Point2D{50.0, 60.0}) return false;
 
     input.activate();
     const auto pending = input.acceptPoint({5.0, 6.0});

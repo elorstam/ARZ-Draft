@@ -179,6 +179,27 @@ Phase 1.3 has not started.
 
 ---
 
+## 1.2.5 CAD Interaction Compatibility Layer
+
+AUTOMATED COMPLETE — HUMAN ACCEPTANCE PENDING
+
+- shared Qt-free point acquisition with one preview/commit result
+- F3 Object Snap and F8 Ortho routed through the shared point path
+- shared transient overlay ownership and no-document-mutation guarantee
+- chained LINE segments with independent IDs/history entries and LINE Undo
+- structured dynamic prompt, coordinate, distance, angle, snap, and option state
+- centralized interaction-stage and right-click policy
+- idle Enter/Space repeat retained in the command registry/input state
+- reusable selection acquisition/confirmation contract documented
+- LINE, PLINE, CIRCLE, ARC, COPY, and paste converged on shared point resolution
+- AutoCAD 2021 LINE black-box findings recorded as behavioral reference only
+- full Debug suite: 14/14 tests passing
+
+Phase 1.3 has not started. Human acceptance remains separate from automated
+completion.
+
+---
+
 ## Phase 1.x — Manual 2D CAD Expansion
 
 NEXT

@@ -63,6 +63,7 @@ add_library(arz_application STATIC
     interaction/commands/CommandLineParser.cpp
     interaction/commands/CommandRegistry.cpp
     interaction/commands/CommandInputState.cpp
+    interaction/point/PointAcquisition.cpp
     interaction/selection/SelectionSet.cpp
     interaction/clipboard/CadClipboard.cpp
     interaction/drafting/DraftingSettings.cpp
@@ -250,6 +251,12 @@ add_executable(arz_cad_interaction_tests
 )
 target_link_libraries(arz_cad_interaction_tests PRIVATE arz_application)
 add_test(NAME cad_interaction_tests COMMAND arz_cad_interaction_tests)
+
+add_executable(arz_cad_interaction_compatibility_tests
+    tests/cad_interaction_compatibility_tests.cpp
+)
+target_link_libraries(arz_cad_interaction_compatibility_tests PRIVATE arz_application)
+add_test(NAME cad_interaction_compatibility_tests COMMAND arz_cad_interaction_compatibility_tests)
 
 add_executable(arz_rendering_foundation_tests
     tests/rendering_foundation_tests.cpp

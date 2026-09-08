@@ -15,9 +15,11 @@
 #include "core/transactions/TransactionHistory.h"
 #include "interaction/clipboard/CadClipboard.h"
 #include "interaction/commands/CommandInputState.h"
+#include "interaction/commands/CommandInputPolicy.h"
 #include "interaction/commands/CommandRegistry.h"
 #include "interaction/drafting/DraftingSettings.h"
 #include "interaction/overlays/OverlayState.h"
+#include "interaction/point/PointAcquisition.h"
 #include "interaction/selection/SelectionSet.h"
 #include "interaction/tools/LineInputController.h"
 #include "interaction/tools/PolylineInputController.h"
@@ -58,6 +60,7 @@ public:
     [[nodiscard]] std::optional<arz::cad::SnapResult> snapCandidate(
         arz::geometry::Point2D worldPoint, double worldTolerance) const;
     [[nodiscard]] bool pointAcquisitionActive() const noexcept;
+    [[nodiscard]] arz::interaction::InteractionStage interactionStage() const noexcept;
     [[nodiscard]] arz::interaction::CopyInputState copyInputState() const noexcept;
     [[nodiscard]] std::optional<arz::geometry::Point2D> copyBasePoint() const noexcept;
 
@@ -106,6 +109,13 @@ private:
                                 arz::geometry::Point2D basePoint);
     [[nodiscard]] bool anyDrawingCommandActive() const noexcept;
     void cancelDrawingCommands() noexcept;
+    [[nodiscard]] std::optional<arz::geometry::Point2D>
+    constraintOrigin() const noexcept;
+    [[nodiscard]] arz::interaction::ResolvedCadPoint resolvePoint(
+        arz::geometry::Point2D rawPoint, double worldTolerance
+    ) const;
+    void refreshPointOverlay(arz::geometry::Point2D rawPoint,
+                             double worldTolerance);
 
     arz::core::Document document_;
     arz::core::TransactionHistory history_;
@@ -125,8 +135,11 @@ private:
     arz::interaction::CadClipboard clipboard_;
     arz::interaction::DraftingSettings draftingSettings_;
     arz::interaction::OverlayState overlayState_;
+    arz::interaction::PointAcquisition pointAcquisition_;
     arz::cad::LayerId currentLayerId_{arz::cad::DefaultLayerId};
     std::string activeOptionBuffer_;
+    std::optional<arz::geometry::Point2D> lastRawPointer_;
+    double lastWorldTolerance_{0.0};
 };
 
 }

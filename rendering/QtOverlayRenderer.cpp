@@ -25,16 +25,13 @@ void QtOverlayRenderer::render(
     QPainter& painter,
     const QSize& canvasSize,
     const RenderContext& context,
-    std::optional<arz::geometry::Point2D> linePreviewStart,
-    std::optional<arz::geometry::Point2D> linePreviewEnd,
-    const std::optional<arz::cad::SnapResult>& snap,
     QPointF cursorPosition,
     const arz::interaction::OverlayState& overlays
 ) const {
-    if (linePreviewStart && linePreviewEnd) {
+    if (const auto& line = overlays.drawingLine()) {
         painter.setPen(QPen(QColor(120, 210, 255), 1.2, Qt::DashLine));
-        painter.drawLine(screenPoint(context, *linePreviewStart),
-                         screenPoint(context, *linePreviewEnd));
+        painter.drawLine(screenPoint(context, line->start),
+                         screenPoint(context, line->end));
     }
 
     if (const auto& paste = overlays.pastePlacement()) {
@@ -118,6 +115,8 @@ void QtOverlayRenderer::render(
                          screenPoint(context, arc->endPoint));
     }
 
+    const auto snap = overlays.resolvedPoint()
+        ? overlays.resolvedPoint()->snap : std::nullopt;
     if (snap) {
         const QPointF marker = screenPoint(context, snap->point);
         painter.setPen(QPen(QColor(90, 235, 170), 1.5));

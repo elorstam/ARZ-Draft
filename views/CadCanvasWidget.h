@@ -6,7 +6,6 @@
 #include <QPointF>
 #include <QWidget>
 
-#include "cad/snapping/SnapResult.h"
 #include "geometry/primitives/Point2D.h"
 #include "rendering/QtDocumentRenderer.h"
 #include "rendering/QtOverlayRenderer.h"
@@ -56,7 +55,6 @@ private:
     QPointF cursorPosition_{};
     QPointF lastPanPosition_{};
     arz::geometry::Point2D hoverWorld_{};
-    std::optional<arz::cad::SnapResult> snap_;
     std::function<void(arz::geometry::Point2D)> coordinatesChanged_;
     std::function<void()> stateChanged_;
     std::function<void(QPointF)> contextMenuRequested_;

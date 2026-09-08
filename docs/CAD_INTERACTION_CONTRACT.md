@@ -37,16 +37,16 @@ Enter and Space use this state order:
 4. With no applicable state, the input is a safe no-op.
 
 An active command owns the meaning of confirmation at each step. LINE is a
-repeating two-point command: a first and second point create one independent
-`LineEntity` through its own `AddLineCommand`, then active LINE immediately
-returns to `Specify first point`. The completed segment's endpoint is not carried
-into the next segment. Enter, Space, or right-click finishes active LINE without
-creating a line; only a later idle Enter/Space repeats LINE.
+continuous chained command: P1-P2 creates one independent `LineEntity`, P2 becomes
+the next fixed point, and P2-P3 creates another. Each segment still has its own
+stable `ObjectId` and undo-history entry. Enter, Space, or the active-command
+right-click policy finishes LINE without creating the unfinished segment; a later
+idle Enter/Space repeats LINE through the command registry.
 
-Command persistence does not imply segment continuity. Every completed segment
-has its own stable `ObjectId` and undo history entry. LINE does not create a
-Polyline or share future PLINE model or connected-chain semantics. Both points of
-every independent segment use the shared SnapService while Object Snap is enabled.
+LINE exposes `Undo` after its first committed segment. The option undoes one LINE
+segment transaction and restores the preceding chain point. Normal application
+undo remains one transaction at a time and does not combine a chain into a
+Polyline or one aggregate history item.
 
 PLINE owns a connected vertex sequence and finishes open with Enter/right-click,
 or closed with the `Close` option (`C`). CIRCLE uses center plus radius point. ARC
@@ -146,14 +146,23 @@ or Escape finishes the COPY session. Originals remain unchanged.
 
 ## Canvas Right-Click Policy
 
-The canvas routes right-click through one context-sensitive policy. While a
-point-acquisition command is active, right-click is consumed by the controller as
-the command's shared finish/confirm behavior; it never opens a menu. While idle,
-right-click opens a native Qt menu near the cursor. The idle menu exposes Repeat
+The canvas routes right-click through `InteractionStage` and one Qt-free
+`CommandInputPolicy`. Idle and ordinary selected-object stages request a native
+context menu. Awaiting-point and repeating-destination stages finish the active
+interaction. Awaiting-selection-confirmation confirms the shared selection stage,
+and a context-menu-open stage is a no-op. Widgets construct menus but do not decide
+command semantics.
+
+The idle menu exposes Repeat
 Last Command, Recent Input from the existing command history, a Clipboard submenu,
 and Properties. With a selection it additionally exposes Erase, Copy Selection,
 Deselect All, and Properties. Each enabled action calls the existing controller,
 clipboard, selection, or transaction API; no menu callback mutates Document directly.
+
+ARZ currently preserves the convenient direct right-click finish for active LINE,
+PLINE, COPY, paste, CIRCLE, and ARC interactions. It does not yet show the full
+AutoCAD-style active-command context menu; adding that menu later must continue to
+route its Enter/Cancel actions through this policy.
 
 ## Shortcut and Focus Routing
 
@@ -177,14 +186,52 @@ One Qt-free drafting settings model backs keyboard shortcuts and status controls
 
 - F3: Object Snap. This gates real endpoint/midpoint snap queries.
 - F7: Grid Display state foundation.
-- F8: Ortho state foundation.
+- F8: Ortho constraint for current point-based command previews and commits.
 - F9: Grid Snap state foundation.
 - F10: Polar Tracking state foundation.
 - F11: Object Snap Tracking state foundation.
 - F12: Dynamic Input. This gates cursor-side command text and prompts.
 
-Ortho and Polar Tracking are mutually exclusive. Foundation-only settings do not
-claim geometric behavior that has not been implemented.
+Ortho and Polar Tracking are mutually exclusive. F3 and F8 immediately recompute
+the current provisional point from the last raw pointer sample.
+
+## Shared Point Acquisition
+
+`PointAcquisition` is the Qt-free reusable resolution stage for LINE, PLINE,
+CIRCLE, ARC, CAD COPY, and clipboard paste. The controller supplies document and
+transient snap candidates through `SnapService`; the point stage itself performs
+no model mutation.
+
+The deterministic data path is:
+
+1. Retain the raw pointer point.
+2. Retain an optional ranked object-snap result.
+3. Apply the stage constraint from its fixed origin when no explicit snap exists.
+4. Publish one `ResolvedCadPoint` for preview, marker, dynamic input, and commit.
+
+A positive object snap is an explicit geometric target and takes precedence over
+Ortho. If there is no snap, Ortho selects the dominant horizontal or vertical axis
+from the stage origin; an exact tie resolves horizontally. A displayed snap marker
+therefore always identifies the actual commit point.
+
+Every click and every pointer preview calls the same resolver. `OverlayState`
+stores the resulting raw, snapped, constrained, final, and snap-marker data. The
+canvas no longer owns a separate LINE preview or snap pipeline.
+
+## Shared Interaction Stages and Selection Acquisition
+
+The reusable stages currently distinguish Idle, Selection Active, Awaiting
+Selection Confirmation, Awaiting Point, Awaiting Repeating Destination, and
+Context Menu Open. Future modify commands consume these stage semantics rather
+than assigning global meanings to Enter, Space, Escape, or right-click.
+
+The reusable selection acquisition contract is:
+
+`SelectObjects -> SelectionSet -> Enter/Space/right-click confirmation -> next command stage`
+
+Existing point, Window, Crossing, Shift add/remove, and preselection behavior is
+unchanged. Selection remains outside `Document`; future command-first selection
+may consume the same set and confirmation transition.
 
 ## Transient Overlays
 
@@ -192,6 +239,18 @@ Dynamic text, registry suggestions, command prompts, selection/crossing rectangl
 paste/COPY previews, snap markers, and future tracking graphics are interaction or
 view state. They are not document objects, receive no `ObjectId`, cannot be selected
 or saved, and do not affect persistent bounds.
+
+`OverlayState` is the shared transient contract for LINE rubber-band geometry,
+PLINE/CIRCLE/ARC previews, COPY/paste transformed geometry, snap markers,
+construction references, selection windows, and dynamic input. These values have
+no `ObjectId`, never enter the spatial index or undo history, and pointer movement
+cannot call a document command. Regression coverage executes hundreds of pointer
+moves while asserting unchanged document object and history counts.
+
+Dynamic input has a structured Qt-free state containing the current prompt,
+resolved coordinate, optional distance and angle, optional snap type, and command
+options. LINE populates distance and angle after P1. Rendering remains deliberately
+compact and does not attempt to clone AutoCAD's editable multi-field heads-up UI.
 
 The drafting canvas renders a light professional crosshair and centered square
 pickbox as a transient overlay while hiding the native arrow cursor. Its configurable
@@ -218,3 +277,15 @@ preview state outside the `Document`.
 
 Widgets must not add command-specific parsers, aliases, persistent state, or model
 mutation shortcuts.
+
+## AutoCAD 2021 Behavioral Reference and Known Deviations
+
+Phase 1.2.5 used black-box LINE observations documented in
+`docs/reference/autocad/LINE_2021.md`. No Autodesk code or assets are included.
+
+Known deviations are intentional phase limits: ARZ directly finishes active
+commands on right-click instead of showing the complete active LINE context menu;
+dynamic input is display-only rather than an editable coordinate/distance/angle
+entry system; Recent Input, Osnap Overrides, Pan, Zoom, and QuickCalc-style active
+menu items are not implemented; advanced tracking and snap overrides remain
+future work.

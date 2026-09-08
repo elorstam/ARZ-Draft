@@ -1,9 +1,9 @@
 ﻿# PROJECT STATE
 
 ## Current Phase
-Phase 1.2 — CLOSED / ACCEPTED WITH KNOWN ISSUES
+Phase 1.2.5 — CAD INTERACTION COMPATIBILITY LAYER
 
-Current work is a mini top-shell UI refinement only. Phase 1.3 has not started.
+AUTOMATED COMPLETE — HUMAN ACCEPTANCE PENDING. Phase 1.3 has not started.
 
 ## Completed
 - C++23 / MSVC / CMake toolchain working
@@ -85,7 +85,7 @@ Current work is a mini top-shell UI refinement only. Phase 1.3 has not started.
 - Viewport visible-world-bounds calculation
 - Canvas free of entity-specific rendering and Zoom Extents branches
 - Reused render-scene storage for paint-loop efficiency
-- Repeating LINE sessions creating separate, independent, individually undoable LineEntity objects
+- Chained LINE sessions creating separate, connected, individually undoable LineEntity objects
 - Repeated endpoint/midpoint-snapped paste placement from one immutable clipboard snapshot
 - Right-click exit for LINE and repeated paste without geometry or history mutation
 - PolylineEntity, CircleEntity and ArcEntity geometry with stable ObjectIds
@@ -109,6 +109,16 @@ Current work is a mini top-shell UI refinement only. Phase 1.3 has not started.
 - Recalibrated 168 px top shell: 27 px header, 25 px tabs, 91 px ribbon, 25 px document tabs
 - Eleven-tab CAD ribbon with dense Home groups and structured non-Home placeholders
 - Tightened 28/16 px icon hierarchy, 9 px ribbon typography, panel padding and control spacing
+- Qt-free shared `PointAcquisition` result with raw, snapped, constrained, and final points
+- Shared `InteractionStage` and right-click policy routing
+- Shared structured dynamic-input state for prompt, coordinate, distance, angle, snap, and options
+- Controller-owned transient LINE rubber band and snap marker source
+- F3/F8 immediate provisional-point recomputation
+- Ortho preview/commit constraints across LINE, PLINE, CIRCLE, ARC, COPY, and paste point stages
+- Chained LINE workflow with independent segment IDs and undo entries
+- LINE `Undo` option restoring the previous chain point
+- Preview/commit identity and no-document-mutation regression coverage
+- AutoCAD 2021 LINE black-box behavioral reference documentation
 
 ## Tests
 Passing:
@@ -125,15 +135,13 @@ Passing:
 - ui_input_routing_tests
 - rendering_foundation_tests
 - phase_1_2_tests
+- cad_interaction_compatibility_tests
 
 ## Last Known Status
-Phases 1.0 and 1.0.1 are HUMAN ACCEPTED. Phase 1.2 is CLOSED / ACCEPTED WITH
-KNOWN ISSUES and adds PLINE, CIRCLE and
-three-point ARC across the command, transaction, rendering, selection, snapping,
-properties and clipboard boundaries, including transient PLINE self-snapping,
-mathematical ARC reference preview, interactive COPY, crosshair/pickbox, and context-sensitive canvas menus. The complete Debug
-MSVC/Qt suite passes.
-Automated verification does not substitute for live human acceptance.
+Phases 1.0 and 1.0.1 are HUMAN ACCEPTED. Phase 1.2 remains CLOSED / ACCEPTED WITH
+KNOWN ISSUES. Phase 1.2.5 adds the shared interaction compatibility layer without
+starting Phase 1.3. The complete 14-test Debug MSVC/Qt suite passes. Automated
+verification does not substitute for live human acceptance.
 
 ## Spatial Index Synchronization
 The spatial index is a derived service outside Document. Phase 0.9
@@ -145,7 +153,19 @@ ownership to the initial index implementation and allows later
 automatic synchronization without changing selection query APIs.
 
 ## Next Phase
-The next approved Phase 1.x milestone. Phase 1.3 has not started.
+Human retest of Phase 1.2.5, followed only by the next explicitly approved Phase
+1.x milestone. Phase 1.3 has not started.
+
+## Phase 1.2.5 Known Limitations
+
+- Active-command right-click preserves direct convenient finish rather than the
+  complete AutoCAD-style context menu.
+- Dynamic input exposes structured prompt/coordinate/distance/angle/options data
+  but fields are not directly editable.
+- Object snap targets take precedence over Ortho; advanced tracking and temporary
+  snap overrides are not implemented.
+- Shared selection stages are defined for reuse, while modify-command selection
+  consumption remains Phase 1.3 work.
 
 Goals:
 - expand manual drawing and editing commands

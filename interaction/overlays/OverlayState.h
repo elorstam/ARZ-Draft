@@ -6,6 +6,7 @@
 #include <cstddef>
 
 #include "geometry/primitives/Point2D.h"
+#include "interaction/point/PointAcquisition.h"
 
 namespace arz::interaction {
 
@@ -58,10 +59,21 @@ struct PastePlacementOverlay final {
     std::vector<TransientArc> arcs;
 };
 
+struct DynamicInputState final {
+    std::string prompt;
+    std::optional<arz::geometry::Point2D> coordinate;
+    std::optional<double> distance;
+    std::optional<double> angleDegrees;
+    std::optional<arz::cad::SnapType> snapType;
+    std::vector<std::string> options;
+};
+
 class OverlayState final {
 public:
     void setDynamicText(std::string text);
     [[nodiscard]] const std::string& dynamicText() const noexcept;
+    void setDynamicInput(DynamicInputState state);
+    [[nodiscard]] const DynamicInputState& dynamicInput() const noexcept;
     void beginSelectionWindow(arz::geometry::Point2D point);
     void updateSelectionWindow(arz::geometry::Point2D point);
     void clearSelectionWindow() noexcept;
@@ -87,9 +99,16 @@ public:
     void setArcReference(ArcReferenceOverlay value);
     void clearArcReference() noexcept;
     [[nodiscard]] const std::optional<ArcReferenceOverlay>& arcReference() const noexcept;
+    void setDrawingLine(TransientLine value);
+    void clearDrawingLine() noexcept;
+    [[nodiscard]] const std::optional<TransientLine>& drawingLine() const noexcept;
+    void setResolvedPoint(ResolvedCadPoint value);
+    void clearResolvedPoint() noexcept;
+    [[nodiscard]] const std::optional<ResolvedCadPoint>& resolvedPoint() const noexcept;
 
 private:
     std::string dynamicText_;
+    DynamicInputState dynamicInput_;
     std::optional<SelectionWindowOverlay> selectionWindow_;
     std::vector<std::string> commandSuggestions_;
     std::size_t selectedSuggestionIndex_{0};
@@ -98,6 +117,8 @@ private:
     std::optional<TransientCircle> drawingCircle_;
     std::optional<TransientArc> drawingArc_;
     std::optional<ArcReferenceOverlay> arcReference_;
+    std::optional<TransientLine> drawingLine_;
+    std::optional<ResolvedCadPoint> resolvedPoint_;
 };
 
 }

@@ -308,7 +308,7 @@ bool testPastePlacementObjectSnap() {
         && controller.document().objectCount() == initialCount + 4;
 }
 
-bool testRepeatingIndependentLineContract() {
+bool testChainedLineContract() {
     using arz::interaction::LineInputState;
     arz::app::CadApplicationController controller;
     if (!addLine(controller, {0, 0}, {100, 0})) return false;
@@ -319,18 +319,15 @@ bool testRepeatingIndependentLineContract() {
             != arz::app::CanvasAction::FirstLinePointAccepted
         || controller.canvasClick({1, 1}, 5.0)
             != arz::app::CanvasAction::EntityCreated
-        || controller.lineInputState() != LineInputState::AwaitingFirstPoint
-        || controller.lineStartPoint()
-        || controller.commandPrompt() != "LINE: Specify first point"
+        || controller.lineInputState() != LineInputState::AwaitingSecondPoint
+        || controller.lineStartPoint() != arz::geometry::Point2D{0, 0}
+        || controller.commandPrompt() != "LINE: Specify next point or [Undo]"
         || controller.canvasClick({99, 1}, 5.0)
-            != arz::app::CanvasAction::FirstLinePointAccepted
-        || controller.lineStartPoint() != arz::geometry::Point2D{100, 0}
-        || controller.canvasClick({51, 1}, 5.0)
             != arz::app::CanvasAction::EntityCreated
         || controller.document().objectCount() != 3
-        || controller.lineInputState() != LineInputState::AwaitingFirstPoint
-        || controller.lineStartPoint()
-        || controller.commandPrompt() != "LINE: Specify first point") return false;
+        || controller.lineInputState() != LineInputState::AwaitingSecondPoint
+        || controller.lineStartPoint() != arz::geometry::Point2D{100, 0}
+        || controller.commandPrompt() != "LINE: Specify next point or [Undo]") return false;
 
     const auto ids = controller.document().objectIds();
     if (ids.size() != 3 || ids[0] == ids[1] || ids[0] == ids[2]
@@ -344,13 +341,12 @@ bool testRepeatingIndependentLineContract() {
         || first->end() != arz::geometry::Point2D{100, 0}
         || second->start() != arz::geometry::Point2D{200, 200}
         || second->end() != arz::geometry::Point2D{0, 0}
-        || third->start() != arz::geometry::Point2D{100, 0}
-        || third->start() == second->end()
-        || third->end() != arz::geometry::Point2D{50, 0}
+        || third->start() != second->end()
+        || third->end() != arz::geometry::Point2D{100, 0}
         || ids[0] != seedId
         || controller.history().undoCount() != 3) return false;
 
-    // Enter/Space share confirmInput: active fresh-point finishes, then idle repeats.
+    // Enter/Space share confirmInput: active chain finishes, then idle repeats.
     if (!controller.confirmInput()
         || controller.lineInputState() != LineInputState::Inactive
         || !controller.confirmInput()
@@ -565,7 +561,7 @@ int main() {
     run("PasteCancelDoesNotMutateDocument", testPasteCancelDoesNotMutateDocument());
     run("SingleLinePasteRegression", testSingleLinePasteRegression());
     run("PastePlacementObjectSnap", testPastePlacementObjectSnap());
-    run("RepeatingIndependentLineContract", testRepeatingIndependentLineContract());
+    run("ChainedLineContract", testChainedLineContract());
     run("RepeatedPasteAcrossSnapModes", testRepeatedPasteAcrossSnapModes());
     run("RightClickFinishesActiveInteraction", testRightClickFinishesActiveInteraction());
     run("SuggestionNavigationState", testSuggestionNavigationState());

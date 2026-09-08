@@ -44,7 +44,6 @@ void CadCanvasWidget::setContextMenuCallback(std::function<void(QPointF)> callba
 
 void CadCanvasWidget::cancelActiveTool() {
     controller_.cancel();
-    snap_.reset();
     update();
 
     if (stateChanged_) {
@@ -63,13 +62,6 @@ arz::geometry::Point2D CadCanvasWidget::hoverWorldPoint() const noexcept {
 
 void CadCanvasWidget::paintEvent(QPaintEvent*) {
     QPainter painter(this);
-    const auto previewStart = controller_.lineStartPoint();
-    const std::optional<arz::geometry::Point2D> previewEnd =
-        previewStart
-        ? std::optional<arz::geometry::Point2D>(
-            snap_ ? snap_->point : hoverWorld_
-          )
-        : std::nullopt;
     const auto context = arz::rendering::makeRenderContext(
         viewport_,
         {static_cast<double>(width()), static_cast<double>(height())},
@@ -81,9 +73,6 @@ void CadCanvasWidget::paintEvent(QPaintEvent*) {
         painter,
         size(),
         context,
-        previewStart,
-        previewEnd,
-        snap_,
         cursorPosition_,
         controller_.overlayState()
     );
@@ -127,9 +116,7 @@ void CadCanvasWidget::mousePressEvent(QMouseEvent* event) {
     }
 
     if (event->button() == Qt::RightButton) {
-        if (controller_.pointAcquisitionActive()) {
-            (void)controller_.rightClick();
-        } else if (contextMenuRequested_) {
+        if (!controller_.rightClick() && contextMenuRequested_) {
             contextMenuRequested_(event->position());
         }
         updateHover(event->position());
@@ -226,10 +213,6 @@ arz::geometry::Point2D CadCanvasWidget::toWorld(
 void CadCanvasWidget::updateHover(QPointF point) {
     cursorPosition_ = point;
     hoverWorld_ = toWorld(point);
-    snap_ = controller_.snapCandidate(
-        hoverWorld_,
-        worldTolerance()
-    );
     controller_.updatePointer(hoverWorld_, worldTolerance());
 
     if (coordinatesChanged_) {

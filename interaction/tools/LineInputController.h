@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <vector>
 
 #include "geometry/primitives/Point2D.h"
 
@@ -27,10 +28,13 @@ public:
     [[nodiscard]] LineInputState state() const noexcept;
     [[nodiscard]] std::optional<arz::geometry::Point2D>
     firstPoint() const noexcept;
+    [[nodiscard]] bool canUndo() const noexcept;
+    [[nodiscard]] bool undoLastSegment() noexcept;
 
 private:
     LineInputState state_{LineInputState::Inactive};
     std::optional<arz::geometry::Point2D> firstPoint_;
+    std::vector<arz::geometry::Point2D> chainPoints_;
 };
 
 }

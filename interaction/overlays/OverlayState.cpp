@@ -6,6 +6,8 @@ namespace arz::interaction {
 
 void OverlayState::setDynamicText(std::string text) { dynamicText_ = std::move(text); }
 const std::string& OverlayState::dynamicText() const noexcept { return dynamicText_; }
+void OverlayState::setDynamicInput(DynamicInputState state) { dynamicInput_ = std::move(state); }
+const DynamicInputState& OverlayState::dynamicInput() const noexcept { return dynamicInput_; }
 void OverlayState::beginSelectionWindow(arz::geometry::Point2D point) {
     selectionWindow_ = SelectionWindowOverlay{point, point, false};
 }
@@ -60,5 +62,11 @@ const std::optional<TransientArc>& OverlayState::drawingArc() const noexcept { r
 void OverlayState::setArcReference(ArcReferenceOverlay value) { arcReference_ = value; }
 void OverlayState::clearArcReference() noexcept { arcReference_.reset(); }
 const std::optional<ArcReferenceOverlay>& OverlayState::arcReference() const noexcept { return arcReference_; }
+void OverlayState::setDrawingLine(TransientLine value) { drawingLine_ = value; }
+void OverlayState::clearDrawingLine() noexcept { drawingLine_.reset(); }
+const std::optional<TransientLine>& OverlayState::drawingLine() const noexcept { return drawingLine_; }
+void OverlayState::setResolvedPoint(ResolvedCadPoint value) { resolvedPoint_ = std::move(value); }
+void OverlayState::clearResolvedPoint() noexcept { resolvedPoint_.reset(); }
+const std::optional<ResolvedCadPoint>& OverlayState::resolvedPoint() const noexcept { return resolvedPoint_; }
 
 }
